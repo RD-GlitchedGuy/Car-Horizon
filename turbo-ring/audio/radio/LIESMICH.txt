@@ -1,0 +1,3 @@
+Songs fuer Turbo FM.
+MP3 hier ablegen und in js/radio.js oben in EIGENE_SONGS eintragen: ['datei.mp3', 'Kuenstler - Titel'].
+Beliebig viele Eintraege moeglich.

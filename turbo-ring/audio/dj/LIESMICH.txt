@@ -1,0 +1,3 @@
+Eigene DJ-Ansagen fuer Turbo FM.
+Dateien hier ablegen (beliebiger Name) und in js/radio.js oben in die Liste DJ_ANSAGEN eintragen.
+Beliebig viele Eintraege moeglich. Ein leerer Eintrag '' bedeutet: keine Ansage, direkt der naechste Song.
