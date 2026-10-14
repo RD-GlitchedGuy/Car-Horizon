@@ -78,7 +78,7 @@ const fmtN = n => Math.round(n).toLocaleString('de-DE');
 /* ---------- Einstellungen & Spielstand ---------- */
 const cfg = { name: store.get('name','Fahrer'+Math.floor(Math.random()*90+10)), car: store.get('car','viper'), paint: store.get('paint',null),
   gfx: store.get('gfx', (('ontouchstart' in window)||navigator.maxTouchPoints>0)?'normal':'ultra'), steer: store.get('steer','buttons'), autogas: store.get('autogas',0), inv: store.get('inv',0),
-  tod: store.get('tod','cycle'), sound: store.get('sound',1), vol: store.get('vol',80), rvol: store.get('rvol',70), cvol: store.get('cvol',100), fvol: store.get('fvol',100), mvol: store.get('mvol',100), cam: store.get('cam',0) };
+  tod: store.get('tod','cycle'), sound: store.get('sound',1), navline: store.get('navline',1), vol: store.get('vol',80), rvol: store.get('rvol',70), cvol: store.get('cvol',100), fvol: store.get('fvol',100), mvol: store.get('mvol',100), cam: store.get('cam',0) };
 const VOL=()=>cfg.vol/100, RVOL=()=>cfg.rvol/100, CVOL=()=>cfg.cvol/100, FVOL=()=>cfg.fvol/100, MVOL=()=>cfg.mvol/100;
 if(!cfg.paint) cfg.paint = carById(cfg.car).paint;
 const save = store.get('save', { xp:0, pr:{}, wins:0 });

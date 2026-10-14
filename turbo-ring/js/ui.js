@@ -9,6 +9,7 @@ function renderOpts(){
   const loc=(k,v)=>{ cfg[k]=v; store.set(k,v); renderOpts(); updateTouchUI(); };
   optButtons('#gfxOpts',[['potato','Potato'],['normal','Normal'],['ultra','Ultra']],cfg.gfx,v=>{ if(v===cfg.gfx) return; const wasPotato=activeGfx==='potato'; loc('gfx',v);
     if(game.mode==='menu'){ applyGfx(); if(HAS_TOUCH && wasPotato) toast('Für volle Kantenglättung die Seite einmal neu laden.'); } else toast('Gilt beim nächsten Betreten des Festivals.'); });
+  optButtons('#navOpts',[[1,'An'],[0,'Aus']],cfg.navline,v=>loc('navline',v));
   optButtons('#radioOpts',[[1,'An'],[0,'Aus']],RADIO.on,v=>{ if(v!==RADIO.on) radioToggle(); });
   optButtons('#todOpts',[['cycle','Zyklus'],['day','Tag'],['dusk','Abend'],['night','Nacht']],cfg.tod,v=>loc('tod',v));
   optButtons('#sndOpts',[[1,'An'],[0,'Aus']],cfg.sound,v=>{ loc('sound',v); initAudio(); if(AU.master) AU.master.gain.value=v?.55:0; });

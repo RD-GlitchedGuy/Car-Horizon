@@ -66,7 +66,7 @@ function frame(now){
       const nx=nextCp(), p=race.road.pts[nx]; W.ring.position.set(p.x,p.y+6,p.z); W.ring.rotation.y=Math.atan2(race.road.tan[nx].x, race.road.tan[nx].z);
       if(!$('#results').hidden) renderResults(); }
   }
-  updateCamera(dt);
+  updateCamera(dt); navUpdate(dt);
   if(W.sky) W.sky.position.copy(camera.position);
   if(W.stars) W.stars.position.copy(camera.position);
   if(W.clouds){ W.clouds.position.set(camera.position.x*.85+(now*.002)%1200, 0, camera.position.z*.85); }

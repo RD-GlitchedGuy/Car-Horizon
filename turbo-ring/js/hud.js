@@ -21,6 +21,7 @@ function drawMinimap(){ const S=mm.width, me=game.me, c=mmc; c.clearRect(0,0,S,S
   W.events.forEach(e=>dot(e.pos.x,e.pos.z,e.col||'#ff2e88',9,true));
   W.stunts.forEach(s=>dot(s.p.x,s.p.z, s.type==='trap'?'#29d9ff':s.type==='drift'?'#ff7a2e':'#ffcf2e',6));
   if(game.race && me.inRace){ const nx=nextCp(); const p=game.race.road.pts[nx]; dot(p.x,p.z,'#29d9ff',8,true); }
+  navDrawMap(c, 5/k, 500);
   game.racers.forEach(r=>{ if(r!==me && r.mesh.visible) dot(r.x,r.z, r.bot?'#c8ced8':r.paint, r.bot?4:7, !r.bot); });
   c.restore();
   c.fillStyle='#ff2e88'; c.beginPath(); c.moveTo(S/2,S/2-14); c.lineTo(S/2+10,S/2+10); c.lineTo(S/2,S/2+5); c.lineTo(S/2-10,S/2+10); c.closePath(); c.fill(); c.lineWidth=2; c.strokeStyle='#fff'; c.stroke(); }
@@ -52,7 +53,7 @@ function buildMapList(){
 function mapView(){ const r=mapCan.getBoundingClientRect(), dpr=Math.min(2,devicePixelRatio); mapCan.width=Math.max(10,r.width*dpr|0); mapCan.height=Math.max(10,r.height*dpr|0);
   const s=Math.min(mapCan.width,mapCan.height)/ ((MAPW-100)/MAPW*MAPS); return { s, ox:mapCan.width/2-MAPS/2*s, oy:mapCan.height/2-MAPS/2*s, dpr }; }
 function drawBigMap(){ if($('#map').hidden) return; const v=mapView(), c=mapCtx; c.fillStyle='#121820'; c.fillRect(0,0,mapCan.width,mapCan.height);
-  c.save(); c.translate(v.ox,v.oy); c.scale(v.s,v.s); c.drawImage(mapImg,0,0); c.restore();
+  c.save(); c.translate(v.ox,v.oy); c.scale(v.s,v.s); c.drawImage(mapImg,0,0); navDrawMap(c, 3*v.dpr/v.s); c.restore();
   const P=(x,z)=>{ const [a,b]=m2p(x,z); return [v.ox+a*v.s, v.oy+b*v.s]; };
   mapItems.forEach(it=>{ const [x,y]=P(it.x,it.z), R=(it===mapSel?11:7)*v.dpr; c.beginPath(); c.arc(x,y,R,0,7); c.fillStyle=it.col; c.fill(); c.lineWidth=2*v.dpr; c.strokeStyle='#0f1218'; c.stroke();
     if(it===mapSel||it.kind==='event'){ c.font=`italic 700 ${13*v.dpr}px "Chakra Petch",sans-serif`; c.fillStyle='#fff'; c.textAlign='left'; c.fillText(it.name, x+R+5*v.dpr, y+4*v.dpr); } });
@@ -60,7 +61,12 @@ function drawBigMap(){ if($('#map').hidden) return; const v=mapView(), c=mapCtx;
   requestAnimationFrame(drawBigMap); }
 mapCan.addEventListener('pointerdown', e=>{ const v=mapView(), r=mapCan.getBoundingClientRect(); const mx=(e.clientX-r.left)*v.dpr, my=(e.clientY-r.top)*v.dpr; let best=null, bd=(28*v.dpr)**2;
   mapItems.forEach(it=>{ const [a,b]=m2p(it.x,it.z); const x=v.ox+a*v.s, y=v.oy+b*v.s, d=(x-mx)**2+(y-my)**2; if(d<bd){ bd=d; best=it; } });
-  if(best){ if(mapSel===best) travel(best); else { mapSel=best; best.btn && best.btn.scrollIntoView({block:'nearest'}); } } });
+  if(best){ if(mapSel===best) travel(best); else { mapSel=best; best.btn && best.btn.scrollIntoView({block:'nearest'}); } return; }
+  // freie Stelle: Wegpunkt setzen (auf bestehenden Wegpunkt tippen = löschen)
+  const px=(mx-v.ox)/v.s, py=(my-v.oy)/v.s, x=px/MAPS*MAPW-MAPW/2, z=py/MAPS*MAPW-MAPW/2;
+  if(NAV.target){ const [a,b]=m2p(NAV.target.x,NAV.target.z); if((v.ox+a*v.s-mx)**2+(v.oy+b*v.s-my)**2<(30*v.dpr)**2){ navClear(); toast('Wegpunkt gelöscht'); return; } }
+  navSetTarget(x,z); });
+$('#mapRoute').onclick=()=>{ if(mapSel){ navSetTarget(mapSel.x,mapSel.z); closeMap(); } else toast('Erst einen Ort auf der Karte auswählen'); };
 function travel(it){ const me=game.me; if(me.inRace){ toast('Während eines Rennens nicht möglich.'); return; }
   let road, i; if(it.kind==='event'){ road=it.ref.road; i=2; } else if(it.kind==='hub'){ me.x=0; me.z=30; me.h=0; me.vx=me.vz=me.vy=0; me.fwd=0; me.y=surfaceAt(0,30)+.05; closeMap(); return; }
   else { road=it.ref.roadObj; i=Math.max(0,(it.ref.i0!=null?it.ref.i0:it.ref.i)-40); if(it.kind==='jump'){ const q=roadQuery(it.ref.ramp.x,it.ref.ramp.z); road=q.r; i=Math.max(0,q.i-50); } }

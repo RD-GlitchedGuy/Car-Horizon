@@ -50,6 +50,7 @@
     <div class="row opts" id="gfxOpts"><span class="label" style="width:72px">Grafik</span></div>
     <div class="row opts" id="todOpts"><span class="label" style="width:72px">Tageszeit</span></div>
     <div class="row opts" id="sndOpts"><span class="label" style="width:72px">Sound</span></div>
+    <div class="row opts" id="navOpts"><span class="label" style="width:72px">Navi-Linie</span></div>
     <div class="row opts" id="radioOpts"><span class="label" style="width:72px">Radio</span></div>
     <div class="label mixT">Lautstärke</div>
     <div class="row vol"><span class="label" style="width:72px">Gesamt</span><input type="range" id="volAll" min="0" max="100" step="1"><b id="volAllV"></b></div>
@@ -122,7 +123,8 @@
     <canvas id="mapCan"></canvas>
     <div id="mapSide" class="stack" style="gap:8px;min-width:0">
       <div class="row" style="justify-content:space-between"><h2>Karte</h2><button id="mapClose">Schließen</button></div>
-      <div class="label">Antippen zum Schnellreisen</div>
+      <div class="label">Ort antippen = auswählen, nochmal = Schnellreise · Freie Stelle = Wegpunkt fürs Navi</div>
+      <button id="mapRoute">📍 Route zum ausgewählten Ort</button>
       <div id="mapList"></div>
     </div>
   </div>
@@ -168,6 +170,7 @@
 <script src="js/studio.js"></script>
 <script src="js/gameplay.js"></script>
 <script src="js/hud.js"></script>
+<script src="js/nav.js"></script>
 <script src="js/main.js"></script>
 <script src="js/net.js"></script>
 <script src="js/ui.js"></script>
