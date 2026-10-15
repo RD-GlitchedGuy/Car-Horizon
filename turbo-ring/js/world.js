@@ -163,7 +163,7 @@ function updateLods(){ if(!W||!W.lods) return; const cp=camera.position, dirty=n
   for(const e of W.lods){ const near=Math.hypot(e.c.x-cp.x, e.c.z-cp.z)-e.r<150; if(e.near===near) continue; e.near=near; e.hi.forEach(m=>m.visible=near);
     for(const it of e.items) e.far.setMatrixAt(it.gi, near?e.zero:it.m); dirty.add(e.far); }
   dirty.forEach(m=>m.instanceMatrix.needsUpdate=true); }
-function patchSky(sky){ const m=sky.material; m.uniforms.skyGain={value:.6}; m.fragmentShader='uniform float skyGain;\n'+m.fragmentShader.replace('gl_FragColor = vec4( retColor, 1.0 );','gl_FragColor = vec4( retColor * skyGain, 1.0 );'); }
+function patchSky(sky){ const m=sky.material; m.uniforms.skyGain={value:.6}; m.fragmentShader='uniform float skyGain;\n'+m.fragmentShader.replace('gl_FragColor = vec4( retColor, 1.0 );','gl_FragColor = vec4( min( retColor * skyGain, vec3( 24.0 ) ), 1.0 );'); }
 
 function mergeStatics(scene){ if(!BGU) return; scene.updateMatrixWorld(true); const buckets=new Map(), rm=[];
   scene.traverse(o=>{ if(!o.isMesh || o.isInstancedMesh || !o.userData.merge) return; for(let p=o.parent;p;p=p.parent) if(p.userData.noMerge) return;
@@ -171,10 +171,10 @@ function mergeStatics(scene){ if(!BGU) return; scene.updateMatrixWorld(true); co
   rm.forEach(o=>o.parent.remove(o));
   for(const [m,L] of buckets){ const g=mergeList(L), put=gg=>{ const me=new THREE.Mesh(gg,m); me.castShadow=me.receiveShadow=HQ(); scene.add(me); }; Array.isArray(g)?g.forEach(put):put(g); } }
 function buildWorld(){
-  if(W && W.gfx===activeGfx) return W;
+  if(W && W.gfx===gfxKey()) return W;
   if(W){ W.scene.traverse(c=>{ if(c.geometry) c.geometry.dispose(); }); if(W.envRT) W.envRT.dispose(); if(W.pmrem) W.pmrem.dispose(); }
   const P=GP(), hq=P.hq, scene=new THREE.Scene();
-  W = { lods:[], scene, roads:[], byId:{}, hash:new Map(), obs:new Map(), ramps:[], stunts:[], events:[], gfx:activeGfx, flat:P.flat, sink:P.sink, mats:{}, anim:[], pointMats:[], sunDir:new THREE.Vector3(0,1,0), lightDir:new THREE.Vector3(0,1,0), night:0, envP:-1 };
+  W = { lods:[], scene, roads:[], byId:{}, hash:new Map(), obs:new Map(), ramps:[], stunts:[], events:[], gfx:gfxKey(), flat:P.flat, sink:P.sink, mats:{}, anim:[], pointMats:[], sunDir:new THREE.Vector3(0,1,0), lightDir:new THREE.Vector3(0,1,0), night:0, envP:-1 };
   scene.background=new THREE.Color('#8fc3ee'); scene.fog=new THREE.Fog(new THREE.Color('#8fc3ee'), P.fog[0], P.fog[1]);
   const hemi=new THREE.HemisphereLight(C('#dce9ff'), C('#4a5a3a'), hq?.45:.95); scene.add(hemi);
   const sun=new THREE.DirectionalLight(C('#fff4dd'), hq?2.4:.9); sun.position.set(300,500,200); scene.add(sun, sun.target);
@@ -285,7 +285,7 @@ function buildWorld(){
     const s=rnd(.7,1.35); dm.position.set(x,h-.3,z); dm.scale.set(s,s*rnd(.9,1.15),s); dm.rotation.set(0,rnd(0,6),0); dm.updateMatrix();
     const FO=MAPDATA.forest, valley = Math.hypot(x,z)<420, tc=new THREE.Color();
     if((h>30 || Math.hypot(x-FO[0],z-FO[1])<FO[2]) && !valley && Math.random()<.85){ tc.setHSL(.3+rnd(-.03,.03),.42,rnd(.2,.27)); if(hq) tc.convertSRGBToLinear(); pines.push({x,y:h,z,m:dm.matrix.clone(),c:tc}); }
-    else { if(valley||Math.random()<.12) tc.setHSL(.93+rnd(-.02,.02),.7,rnd(.72,.84)); else tc.setHSL(.27+rnd(-.04,.04),.45,rnd(.28,.38)); if(hq) tc.convertSRGBToLinear(); broads.push({x,y:h,z,m:dm.matrix.clone(),c:tc}); }
+    else { if(valley||Math.random()<.035){ tc.setHSL(.93+rnd(-.02,.02),.7,rnd(.72,.84)); (W.cherries||(W.cherries=[])).push([x,h,z,s]); } else tc.setHSL(.27+rnd(-.04,.04),.45,rnd(.28,.38)); if(hq) tc.convertSRGBToLinear(); broads.push({x,y:h,z,m:dm.matrix.clone(),c:tc}); }
     addObs({x,z,r:.9*s,top:h+8}); }
   if(hq){ const loPine=prep(G_(new THREE.ConeGeometry(3.3,10,7),0,6.8,0)), loBroad=prep(jitter(smoothify(G_(new THREE.IcosahedronGeometry(3.6,0),0,6.6,0,0,0,0,1.15,1,1.15)),.18,3));
     lodForest(scene, pines, [[pineG,leafM,true,true],[pineTrunkG,barkM,false,true]], [loPine,leafM]);
@@ -457,17 +457,23 @@ function makeLeaves(scene, n){
   const tex=canvasTex(32,32,(c,w,h)=>{ c.clearRect(0,0,w,h); c.fillStyle='#fff'; c.beginPath(); c.ellipse(16,16,14,7,.6,0,7); c.fill(); c.strokeStyle='rgba(0,0,0,.25)'; c.lineWidth=1.5; c.beginPath(); c.moveTo(5,24); c.lineTo(27,8); c.stroke(); });
   const m=new THREE.MeshLambertMaterial({map:tex, alphaTest:.5, side:THREE.DoubleSide, emissive:new THREE.Color(.16,.14,.13)});
   const im=new THREE.InstancedMesh(new THREE.PlaneGeometry(.34,.24), m, n); im.frustumCulled=false; im.receiveShadow=true; scene.add(im);
-  const PAL=['#ffb7d0','#ffd2e1','#f7a8c4','#7fae3e','#a6c94f','#d9a23c','#c8642b'], c=new THREE.Color(), L=[];
-  const spawn=(l,top)=>{ const cx=camera.position.x, cz=camera.position.z, a=Math.random()*6.283, r=4+Math.sqrt(Math.random())*42; l.x=cx+Math.cos(a)*r; l.z=cz+Math.sin(a)*r;
-    l.g=surfaceAt(l.x,l.z,false); l.y=l.g+(top?rnd(1,9):rnd(5,10)); l.v=rnd(.6,1.3); l.p=rnd(0,6.283); l.f=rnd(1.5,3.2); l.rest=0; };
-  for(let i=0;i<n;i++){ const l={}; spawn(l,true); L.push(l); const pink=Math.hypot(l.x,l.z)<500||Math.random()<.3; c.set(pink?PAL[i%3]:PAL[3+i%4]); if(HQ()) c.convertSRGBToLinear(); im.setColorAt(i,c); }
+  const PAL=['#ffb7d0','#ffd2e1','#f7a8c4','#ffc4d8','#fbe0ea'], c=new THREE.Color(), L=[];
+  const CH=new Map(); for(const c of (W.cherries||[])){ const k=Math.floor(c[0]/40)+'_'+Math.floor(c[2]/40); (CH.get(k)||CH.set(k,[]).get(k)).push(c); }
+  const near=(x,z)=>{ const gx=Math.floor(x/40), gz=Math.floor(z/40), L=[]; for(let a=-1;a<=1;a++) for(let b=-1;b<=1;b++){ const C=CH.get((gx+a)+'_'+(gz+b)); if(C) for(const c of C) if((c[0]-x)**2+(c[2]-z)**2<55*55) L.push(c); } return L; };
+  let nearList=[], nearAt=null;
+  // Blüten fallen nur dort, wo Kirschbäume in der Nähe stehen – direkt aus deren Krone
+  const spawn=(l,top)=>{ const cx=camera.position.x, cz=camera.position.z; if(!nearAt || Math.hypot(nearAt[0]-cx,nearAt[1]-cz)>8){ nearList=near(cx,cz); nearAt=[cx,cz]; }
+    if(!nearList.length){ l.off=true; l.y=-999; return; } const t=nearList[(Math.random()*nearList.length)|0], a=Math.random()*6.283, rr=Math.sqrt(Math.random())*3.6*t[3];
+    l.off=false; l.x=t[0]+Math.cos(a)*rr; l.z=t[2]+Math.sin(a)*rr; l.g=surfaceAt(l.x,l.z,false); l.y=t[1]+(top?rnd(1,8):rnd(5,8))*t[3]; l.v=rnd(.6,1.3); l.p=rnd(0,6.283); l.f=rnd(1.5,3.2); l.rest=0; };
+  for(let i=0;i<n;i++){ const l={}; spawn(l,true); L.push(l); c.set(PAL[i%5]); if(HQ()) c.convertSRGBToLinear(); im.setColorAt(i,c); }
   im.instanceColor.needsUpdate=true;
   const o=new THREE.Object3D(); let t=0;
   W.anim.push(dt=>{ t+=dt; const wx=Math.sin(t*.13)*.9+.6, wz=Math.cos(t*.09)*.6+.3, cx=camera.position.x, cz=camera.position.z;
     for(let i=0;i<n;i++){ const l=L[i];
+      if(l.off){ if(Math.random()<dt*.5) spawn(l,true); if(l.off){ o.position.set(0,-999,0); o.updateMatrix(); im.setMatrixAt(i,o.matrix); continue; } }
       if(l.rest>0){ l.rest-=dt; if(l.rest<=0) spawn(l,false); }
       else { l.y-=l.v*dt; l.x+=(wx+Math.sin(t*l.f+l.p)*.9)*dt; l.z+=(wz+Math.cos(t*l.f*.8+l.p)*.7)*dt; if(l.y<=l.g+.03){ l.y=l.g+.03; l.rest=rnd(1.5,4); } }
-      if((l.x-cx)**2+(l.z-cz)**2>2500) spawn(l,true);
+      if((l.x-cx)**2+(l.z-cz)**2>3600) spawn(l,true);
       o.position.set(l.x,l.y,l.z); if(l.rest>0) o.rotation.set(-Math.PI/2,0,l.p); else o.rotation.set(Math.sin(t*l.f+l.p)*1.2, t*l.f*.7+l.p, Math.cos(t*l.f*1.3+l.p)*.9); o.updateMatrix(); im.setMatrixAt(i,o.matrix); }
     im.instanceMatrix.needsUpdate=true; });
   return im; }

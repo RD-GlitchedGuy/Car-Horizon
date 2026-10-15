@@ -7,7 +7,7 @@ function optButtons(container, items, cur, onPick){ const c=$(container); [...c.
   items.forEach(([v,label])=>{ const b=document.createElement('button'); b.textContent=label; if(v===cur) b.classList.add('sel'); b.onclick=()=>onPick(v); c.appendChild(b); }); }
 function renderOpts(){
   const loc=(k,v)=>{ cfg[k]=v; store.set(k,v); renderOpts(); updateTouchUI(); };
-  optButtons('#gfxOpts',[['potato','Potato'],['normal','Normal'],['ultra','Ultra']],cfg.gfx,v=>{ if(v===cfg.gfx) return; const wasPotato=activeGfx==='potato'; loc('gfx',v);
+  optButtons('#gfxOpts',[['potato','Potato'],['normal','Normal'],['ultra','Ultra'],['custom','Eigene']],cfg.gfx,v=>{ if(v===cfg.gfx) return; const wasPotato=activeGfx==='potato'; loc('gfx',v);
     if(game.mode==='menu'){ applyGfx(); if(HAS_TOUCH && wasPotato) toast('Für volle Kantenglättung die Seite einmal neu laden.'); } else toast('Gilt beim nächsten Betreten des Festivals.'); });
   optButtons('#navOpts',[[1,'An'],[0,'Aus']],cfg.navline,v=>loc('navline',v));
   optButtons('#radioOpts',[[1,'An'],[0,'Aus']],RADIO.on,v=>{ if(v!==RADIO.on) radioToggle(); });
@@ -63,3 +63,28 @@ if(/^#[A-Z]{4}$/i.test(location.hash)) $('#joinCode').value=location.hash.slice(
 // Lautstärkeregler (Gesamt & Radio), wird gespeichert
 [['#volAll','vol'],['#volCar','cvol'],['#volFx','fvol'],['#volRadio','rvol'],['#volMusic','mvol']].forEach(([id,k])=>{ const el=$(id), out=$(id+'V'); el.value=cfg[k]; out.textContent=cfg[k]+'%';
   el.addEventListener('input',()=>{ cfg[k]=+el.value; out.textContent=el.value+'%'; store.set(k,cfg[k]); applyVolume(); }); });
+
+// ---------- Eigene Grafik: jede Option einzeln ----------
+const GFX_ROWS=[
+  ['res','Auflösung',[[.75,'75 %'],[1,'100 %'],[1.3,'130 %'],[1.6,'160 %'],[2,'200 %']]],
+  ['shadows','Schatten',[[0,'Aus'],[2048,'Mittel'],[4096,'Hoch'],[8192,'Ultra']]],
+  ['view','Sichtweite',[['nah','Nah'],['mittel','Mittel'],['weit','Weit']]],
+  ['seg','Gelände-Details',[[300,'Niedrig'],[400,'Hoch'],[480,'Ultra'],[600,'Extrem']]],
+  ['trees','Bäume',[[3000,'Wenig'],[8000,'Normal'],[13000,'Viel'],[20000,'Wald']]],
+  ['grass','Gras',[[0,'Aus'],[8000,'Wenig'],[16000,'Normal'],[36000,'Dicht'],[60000,'Extrem']]],
+  ['buildings','Hochhäuser',[[260,'Wenig'],[380,'Normal'],[520,'Viel'],[700,'Metropole']]],
+  ['clouds','Wolken',[[0,'Aus'],[36,'Wenig'],[56,'Normal'],[90,'Viel']]],
+  ['fx','Rauch & Staub',[[120,'Wenig'],[360,'Normal'],[520,'Viel']]],
+  ['leaves','Kirschblüten',[[0,'Aus'],[600,'Wenig'],[1100,'Normal'],[2000,'Viel']]],
+  ['bloom','Leuchten (Bloom)',[[1,'An'],[0,'Aus']]],
+  ['post','Ultra-Effekte (Lichtstrahlen, Tempo-Unschärfe, Kinolook)',[[1,'An'],[0,'Aus']]],
+  ['solas','Solas-Shader (Schattierung, Licht in der Luft, Linsenreflexe)',[[1,'An'],[0,'Aus']]],
+  ['dyn','Automatische Auflösung bei Rucklern',[[1,'An'],[0,'Aus']]] ];
+function renderGfxPanel(){ const c=customCfg(), box=$('#gfxRows'); box.innerHTML='';
+  GFX_ROWS.forEach(([k,label,items])=>{ const row=document.createElement('div'); row.className='row opts'; row.innerHTML=`<span class="label" style="width:150px;white-space:normal">${label}</span>`; box.appendChild(row);
+    items.forEach(([v,t])=>{ const b=document.createElement('button'); b.textContent=t; if(v===c[k]) b.classList.add('sel'); b.onclick=()=>{ const cur=customCfg(); cur[k]=v; store.set('gfxc',cur); renderGfxPanel(); }; row.appendChild(b); }); });
+  const row=document.createElement('div'); row.className='row opts'; row.innerHTML='<span class="label" style="width:150px">Vorlage</span>'; box.appendChild(row);
+  [['Wie Normal',{res:1,shadows:2048,view:'mittel',seg:340,trees:6000,grass:9000,buildings:340,clouds:36,fx:260,leaves:0,bloom:0,post:0,solas:0,dyn:1}],['Wie Ultra',{res:1.3,shadows:8192,view:'weit',seg:480,trees:13000,grass:36000,buildings:520,clouds:90,fx:520,leaves:1100,bloom:1,post:1,solas:1,dyn:1}]].forEach(([t,o])=>{ const b=document.createElement('button'); b.textContent=t; b.onclick=()=>{ store.set('gfxc',o); renderGfxPanel(); }; row.appendChild(b); }); }
+function closeGfxPanel(){ $('#gfxPanel').hidden=true; if(cfg.gfx!=='custom'){ cfg.gfx='custom'; store.set('gfx','custom'); }
+  if(game.mode==='menu') applyGfx(); else toast('Gilt beim nächsten Betreten des Festivals.'); renderOpts(); }
+$('#btnGfxCustom').onclick=()=>{ renderGfxPanel(); $('#gfxPanel').hidden=false; }; $('#gfxClose').onclick=closeGfxPanel;

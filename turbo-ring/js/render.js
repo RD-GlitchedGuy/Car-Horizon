@@ -8,9 +8,17 @@ const PRESETS = {
   // Potato = die bisherige Grafik
   potato: Object.assign({}, PBASE, { label:'Potato', hq:false, pr:Math.min(DPR, HAS_TOUCH?1.5:1.75), seg:300, trees:4200, buildings:300, fog:[300,1500], far:4200, shadows:0, bloom:false, grass:0, clouds:0, rocks:0, rails:false, lamps:false, fx:60, skid:false, aniso:4, carSeg:0, lod:0, dyn:false }),
   normal: Object.assign({}, PBASE, { label:'Normal', hq:true, pr:Math.min(DPR, 1.5), seg:340, trees:6000, buildings:340, fog:[380,2100], far:4200, shadows:2048, shadowR:60, bloom:false, grass:HAS_TOUCH?4000:9000, grassS:64, clouds:36, rocks:150, rails:true, lamps:true, fx:160, skid:true, aniso:8, carSeg:1, lod:60, dyn:true }),
-  ultra:  Object.assign({}, PBASE, { label:'Ultra', hq:true, pr:Math.min(DPR*1.3, 2.4), seg:480, trees:13000, buildings:520, fog:[600,3200], far:6500, shadows:8192, shadowR:120, bloom:true, grass:36000, grassS:120, clouds:90, rocks:520, rails:true, lamps:true, fx:520, skid:true, aniso:16, carSeg:2, lod:180, dyn:true, leaves:1100 }),
+  ultra:  Object.assign({}, PBASE, { label:'Ultra', hq:true, pr:Math.min(DPR*1.3, 2.4), seg:480, trees:13000, buildings:520, fog:[600,3200], far:6500, shadows:8192, shadowR:120, bloom:true, grass:36000, grassS:120, clouds:90, rocks:520, rails:true, lamps:true, fx:520, skid:true, aniso:16, carSeg:2, lod:180, dyn:true, leaves:1100, post:true, solas:true }),
 };
+// Eigene Grafik: alle Regler einzeln (im Menü unter Grafik → Eigene → Anpassen)
+const CUSTOM_DEF={ res:1.3, shadows:4096, trees:8000, grass:16000, leaves:1100, clouds:56, fx:360, buildings:380, view:'mittel', seg:400, bloom:1, post:1, solas:1, dyn:1 };
+function customCfg(){ return Object.assign({}, CUSTOM_DEF, store.get('gfxc',{})); }
+function buildCustom(){ const c=customCfg(), V={nah:[[300,1500],3600], mittel:[[450,2400],5000], weit:[[600,3200],6500]}[c.view]||[[450,2400],5000];
+  return Object.assign({}, PRESETS.ultra, { label:'Eigene', pr:Math.min(DPR*c.res,2.6), shadows:c.shadows, shadowR:c.shadows>=8192?120:c.shadows>=4096?85:60, trees:c.trees, grass:c.grass, grassS:c.grass>20000?120:92,
+    leaves:c.leaves, clouds:c.clouds, fx:c.fx, buildings:c.buildings, fog:V[0], far:V[1], seg:c.seg, bloom:!!(c.bloom||c.post||c.solas), bloomOn:!!c.bloom, post:!!c.post, solas:!!c.solas, dyn:!!c.dyn, rocks:Math.round(c.trees/25), lod:c.trees>10000?180:120 }); }
+PRESETS.custom=buildCustom();
 let activeGfx = PRESETS[cfg.gfx] ? cfg.gfx : 'normal';
+const gfxKey=()=>activeGfx==='custom'?'custom'+JSON.stringify(customCfg()):activeGfx;
 const GP = () => PRESETS[activeGfx];
 const HQ = () => GP().hq;
 
@@ -28,22 +36,34 @@ function fitFov(v, aspect){ const ref=1.45; if(aspect>=ref) return v; const hf=2
 // Farben: in den HQ-Presets wird linear gerechnet
 const C = hex => { const c=new THREE.Color(hex); if(HQ()) c.convertSRGBToLinear(); return c; };
 const _c1=new THREE.Color(), _c2=new THREE.Color(), _c3=new THREE.Color();
-const GradeShader = { uniforms:{ tDiffuse:{value:null}, sat:{value:1.08}, ultra:{value:0}, speed:{value:0}, time:{value:0}, sun:{value:new THREE.Vector2(.5,.5)}, sunVis:{value:0} },
+const GradeShader = { uniforms:{ tDiffuse:{value:null}, tDepth:{value:null}, sat:{value:1.08}, ultra:{value:0}, solas:{value:0}, speed:{value:0}, time:{value:0}, sun:{value:new THREE.Vector2(.5,.5)}, sunVis:{value:0},
+    sunView:{value:new THREE.Vector3(0,1,0)}, sunCol:{value:new THREE.Color(1,.85,.6)}, day:{value:1}, near:{value:.3}, far:{value:5000}, invProj:{value:new THREE.Matrix4()}, aspect:{value:1.7} },
   vertexShader:'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-  fragmentShader:`uniform sampler2D tDiffuse; uniform float sat, ultra, speed, time, sunVis; uniform vec2 sun; varying vec2 vUv;
+  fragmentShader:`uniform sampler2D tDiffuse; uniform sampler2D tDepth; uniform float sat, ultra, solas, speed, time, sunVis, day, near, far, aspect; uniform vec2 sun; uniform vec3 sunView, sunCol; uniform mat4 invProj; varying vec2 vUv;
     vec3 toSRGB(vec3 c){ return mix(c*12.92, 1.055*pow(c,vec3(1.0/2.4))-0.055, step(vec3(0.0031308),c)); }
+    vec3 T(vec2 p){ return clamp(texture2D(tDiffuse,p).rgb, 0.0, 16.0); }      // HDR begrenzen (sonst schwarze Sonne durch Überlauf)
     float hash(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
+    float linZ(vec2 p){ float d=texture2D(tDepth,p).x; return (near*far)/(far-d*(far-near)); }
     void main(){ vec2 uv=vUv; vec3 c;
       if(ultra>.5){
-        // Ultra: radiale Bewegungsunschärfe + chromatische Aberration (stärker bei hohem Tempo)
         vec2 d=uv-.5; float r=length(d); float bl=speed*smoothstep(.12,.75,r)*.05; float ca=.0012+.0035*speed*r;
-        vec3 acc=vec3(0.0); for(int i=0;i<10;i++){ float t=float(i)/9.0; vec2 o=d*bl*t; acc.r+=texture2D(tDiffuse,uv-o-d*ca).r; acc.g+=texture2D(tDiffuse,uv-o).g; acc.b+=texture2D(tDiffuse,uv-o+d*ca).b; } c=acc/10.0;
-        // Lichtstrahlen (God Rays) von der Sonne
-        if(sunVis>0.01){ vec2 dv=uv-sun; vec3 rays=vec3(0.0); vec2 p=uv; float w=1.0; for(int i=0;i<32;i++){ p-=dv*.028; vec3 sc=texture2D(tDiffuse,p).rgb; float b=smoothstep(.75,1.4,dot(sc,vec3(.2126,.7152,.0722))); rays+=sc*b*w; w*=.95; } c+=rays*.05*sunVis; }
-        // leichte Schärfung
-        vec2 px=vec2(1.0)/vec2(1920.0,1080.0); vec3 bln=(texture2D(tDiffuse,uv+vec2(px.x,0)).rgb+texture2D(tDiffuse,uv-vec2(px.x,0)).rgb+texture2D(tDiffuse,uv+vec2(0,px.y)).rgb+texture2D(tDiffuse,uv-vec2(0,px.y)).rgb)*.25; c+=(c-bln)*.18;
-      } else c=texture2D(tDiffuse,uv).rgb;
-      c=max(c,0.0); float l=dot(c,vec3(.2126,.7152,.0722)); c=mix(vec3(l),c,sat);
+        vec3 acc=vec3(0.0); for(int i=0;i<10;i++){ float t=float(i)/9.0; vec2 o=d*bl*t; acc.r+=T(uv-o-d*ca).r; acc.g+=T(uv-o).g; acc.b+=T(uv-o+d*ca).b; } c=acc/10.0;
+        if(sunVis>0.01){ vec2 dv=uv-sun; vec3 rays=vec3(0.0); vec2 p=uv; float w=1.0; for(int i=0;i<32;i++){ p-=dv*.028; vec3 sc=T(p); float b=smoothstep(.75,1.4,dot(sc,vec3(.2126,.7152,.0722))); rays+=sc*b*w; w*=.95; } c+=rays*.05*sunVis; }
+        vec2 px=vec2(1.0)/vec2(1920.0,1080.0); vec3 bln=(T(uv+vec2(px.x,0))+T(uv-vec2(px.x,0))+T(uv+vec2(0,px.y))+T(uv-vec2(0,px.y)))*.25; c+=(c-bln)*.18;
+      } else c=T(uv);
+      if(solas>.5){
+        // Solas-Look: Umgebungsverdeckung (AO) aus der Tiefe, Licht-Streuung in der Luft, Linsenreflexe, warme Farben
+        float z=linZ(uv); float ao=0.0; float rad=clamp(14.0/z,.002,.03);
+        for(int i=0;i<8;i++){ float a=float(i)*.785+hash(uv*731.0)*.8; vec2 o=vec2(cos(a),sin(a)*aspect)*rad*(.5+.5*float(i)/8.0); float dz=z-linZ(uv+o); ao+=smoothstep(.15,1.2,dz)*(1.0-smoothstep(3.0,9.0,dz)); }
+        c*=1.0-ao/8.0*.55*(1.0-smoothstep(150.0,400.0,z));
+        vec4 pv=invProj*vec4(uv*2.0-1.0,1.0,1.0); vec3 vd=normalize(pv.xyz/pv.w); float mu=max(dot(vd,sunView),0.0);
+        float fogA=1.0-exp(-z*.00075); float ph=pow(mu,10.0)*1.4+pow(mu,2.0)*.25;
+        c=mix(c, sunCol*(.6+ph*1.6), clamp(fogA*(.10+ph*.4)*day,0.0,.6));
+        if(sunVis>0.01){ vec2 axis=vec2(.5)-sun; vec2 q=(uv-sun)*vec2(aspect,1.0); c+=sunCol*exp(-dot(q,q)*90.0)*.35*sunVis;
+          for(int k=1;k<5;k++){ float t=float(k)*.42; vec2 gp=sun+axis*t*2.0; vec2 g=(uv-gp)*vec2(aspect,1.0); float rr=.015+.02*float(k); c+=mix(vec3(1.0,.6,.3),vec3(.4,.7,1.0),float(k)/4.0)*smoothstep(rr,rr*.55,length(g))*.06*sunVis; } }
+        c*=mix(vec3(1.0),vec3(1.06,1.0,.92),day);
+      }
+      c=clamp(c,0.0,1.0); float l=dot(c,vec3(.2126,.7152,.0722)); c=clamp(mix(vec3(l),c,sat+solas*.06),0.0,1.0);
       if(ultra>.5){ float v=length(vUv-.5)*1.3; c*=1.0-.22*pow(v,2.4); c=mix(c, c*c*(3.0-2.0*c), .12); c+=(hash(vUv*vec2(1920.0,1080.0)+fract(time))-.5)*.006; }
       gl_FragColor=vec4(toSRGB(clamp(c,0.0,1.0)),1.0); }` };
 function setupComposer(){
@@ -54,19 +74,21 @@ function setupComposer(){
     const [w,h]=viewSize(), pr=renderer.getPixelRatio(), ext=renderer.extensions, wgl2=renderer.capabilities.isWebGL2;
     const half = wgl2 && (ext.has('EXT_color_buffer_float') || ext.has('EXT_color_buffer_half_float'));
     const opt={ minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter, format:THREE.RGBAFormat, type: half?THREE.HalfFloatType:THREE.UnsignedByteType };
-    const rt = (wgl2 && THREE.WebGLMultisampleRenderTarget) ? new THREE.WebGLMultisampleRenderTarget(w*pr,h*pr,opt) : new THREE.WebGLRenderTarget(w*pr,h*pr,opt);
+    const rt = (wgl2 && THREE.WebGLMultisampleRenderTarget && !P.solas) ? new THREE.WebGLMultisampleRenderTarget(w*pr,h*pr,opt) : new THREE.WebGLRenderTarget(w*pr,h*pr,opt);
+    if(P.solas){ rt.depthTexture=new THREE.DepthTexture(); rt.depthTexture.type=THREE.UnsignedIntType; }
     composer=new THREE.EffectComposer(renderer, rt); composer.setPixelRatio(pr); composer.setSize(w,h);
     renderPass=new THREE.RenderPass(show.scene, camera); composer.addPass(renderPass);
-    bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(w,h), activeGfx==='ultra'?.42:.32, activeGfx==='ultra'?.6:.5, activeGfx==='ultra'?.82:.86); composer.addPass(bloomPass);
-    gradePass=new THREE.ShaderPass(GradeShader); gradePass.uniforms.ultra.value=activeGfx==='ultra'?1:0; composer.addPass(gradePass);
+    if(P.bloomOn!==false) bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(w,h), activeGfx==='ultra'?.42:.32, activeGfx==='ultra'?.6:.5, activeGfx==='ultra'?.82:.86); if(bloomPass) composer.addPass(bloomPass);
+    gradePass=new THREE.ShaderPass(GradeShader); gradePass.uniforms.ultra.value=P.post?1:0; gradePass.uniforms.solas.value=P.solas?1:0; composer.addPass(gradePass);
   }catch(e){ console.warn('Bloom deaktiviert', e); composer=null; }
 }
-function draw(scene, cam){ if(composer){ renderPass.scene=scene; renderPass.camera=cam; composer.render(); } else renderer.render(scene, cam); }
+function draw(scene, cam){ if(composer){ if(gradePass && gradePass.uniforms.solas.value){ const U=gradePass.uniforms; U.tDepth.value=composer.readBuffer.depthTexture; U.near.value=cam.near; U.far.value=cam.far; U.invProj.value.copy(cam.projectionMatrixInverse); U.aspect.value=cam.aspect; } renderPass.scene=scene; renderPass.camera=cam; composer.render(); } else renderer.render(scene, cam); }
 // Dynamische Auflösung: hält die Bildrate in Normal/Ultra stabil
 function dynRes(dt){ const P=GP(); if(!P.dyn) return; DYN.acc+=dt; DYN.n++; if(DYN.acc<1.5) return; const fps=DYN.n/DYN.acc; DYN.acc=0; DYN.n=0;
   let s=DYN.scale; if(fps<44) s*=.85; else if(fps<54) s*=.94; else if(fps>58.5) s*=1.05; s=clamp(s,.5,1);
   if(Math.abs(s-DYN.scale)>.015){ DYN.scale=s; renderer.setPixelRatio(P.pr*s); resize(); } }
 function applyGfx(){
+  PRESETS.custom=buildCustom();
   activeGfx = PRESETS[cfg.gfx] ? cfg.gfx : 'normal'; const P=GP();
   DYN.scale=1; DYN.acc=0; DYN.n=0;
   renderer.setPixelRatio(P.pr);

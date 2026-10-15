@@ -73,10 +73,10 @@ function frame(now){
   if(W.clouds){ W.clouds.position.set(camera.position.x*.85+(now*.002)%1200, 0, camera.position.z*.85); }
   if(W.grass){ const u=W.grass.material.uniforms; u.uCam.value.copy(camera.position); u.uTime.value=now/1000; }
   updatePointScale();
-  if(gradePass && gradePass.uniforms.ultra.value){ const U=gradePass.uniforms, me2=game.me; U.time.value=now/1000;
+  if(gradePass && (gradePass.uniforms.ultra.value || gradePass.uniforms.solas.value)){ const U=gradePass.uniforms, me2=game.me; U.time.value=now/1000;
     const sp=me2&&game.mode==='roam'?Math.abs(me2.fwd||0)/me2.def.maxSpeed:0; U.speed.value+=(clamp((sp-.45)/.55,0,1)-U.speed.value)*Math.min(1,dt*3);
     const sv=_vS.copy(W.sunDir).multiplyScalar(2000).add(camera.position).project(camera), facing=_v4.set(0,0,-1).applyQuaternion(camera.quaternion).dot(W.sunDir);
-    U.sun.value.set(sv.x*.5+.5, sv.y*.5+.5); U.sunVis.value=facing>0 && W.sunDir.y>-.02 ? sstep(0,.35,facing)*(1-sstep(.9,1.6,Math.max(Math.abs(sv.x),Math.abs(sv.y))))*(1-(W.night||0)) : 0; }
+    U.sun.value.set(sv.x*.5+.5, sv.y*.5+.5); U.sunView.value.copy(W.sunDir).transformDirection(camera.matrixWorldInverse); U.sunCol.value.copy(W.sun.color); U.day.value=sstep(-.05,.15,W.sunDir.y)*(1-(W.night||0)); U.sunVis.value=facing>0 && W.sunDir.y>-.02 ? sstep(0,.35,facing)*(1-sstep(.9,1.6,Math.max(Math.abs(sv.x),Math.abs(sv.y))))*(1-(W.night||0)) : 0; }
   draw(W.scene, camera);
 }
 // nach dem Zieleinlauf fährt der Autopilot weiter
@@ -87,7 +87,7 @@ requestAnimationFrame(frame);
 function enterWorld(cine){
   $('#loading').hidden=false;
   setTimeout(()=>{
-    if(activeGfx!==cfg.gfx) applyGfx();
+    if(activeGfx!==cfg.gfx || cfg.gfx==='custom') applyGfx();
     buildWorld(); if(W.skid){ W.skid.pos.fill(0); W.skid.g.attributes.position.needsUpdate=true; W.skid.last=[null,null]; } game.mode=cine?'intro':'roam'; game.cineBoot=!!cine; game.intro=0; game.racers=[]; game.byId.clear(); game.race=null; game.region='';
     game.me=makeRacer(myEntry()); const me=game.me; me.hubX=rnd(-12,12); me.hubZ=30+rnd(-6,6); if(cine){ const hw=W.byId.hwy; placeOnRoad(me, hw, 900, -3.6); me.road=hw; me.skill=.72; } else { cinePark(); me.road=null; } camState.init=false; game.cineHub=false; game.cineCap=null; game.cineShot=-1; game.fwI=0; $('#cineT').innerHTML=''; $('#cineT').style.opacity=0;
     if(isAuthority()){ game.roster=[myEntry(), ...createAmbient()]; syncRacers(game.roster); if(net.isHost) sendRoster(); }

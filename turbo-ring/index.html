@@ -8,7 +8,7 @@
 <title>Turbo Ring</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,500;0,700;1,700&family=Barlow:wght@400;600;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261015d">
+<link rel="stylesheet" href="css/style.css?v=20261015e">
 </head>
 <body>
 <canvas id="gl"></canvas>
@@ -48,6 +48,7 @@
   </div>
   <div class="panel stack" id="settings">
     <div class="row opts" id="gfxOpts"><span class="label" style="width:72px">Grafik</span></div>
+    <button id="btnGfxCustom">⚙ Grafik selbst einstellen</button>
     <div class="row opts" id="todOpts"><span class="label" style="width:72px">Tageszeit</span></div>
     <div class="row opts" id="sndOpts"><span class="label" style="width:72px">Sound</span></div>
     <div class="row opts" id="navOpts"><span class="label" style="width:72px">Navi-Linie</span></div>
@@ -131,6 +132,13 @@
   </div>
 </div>
 
+<div id="gfxPanel" class="screen overlay scroll" hidden>
+  <div class="panel stack" style="width:min(680px,100%)">
+    <div class="row" style="justify-content:space-between"><h2>Eigene Grafik</h2><button id="gfxClose" class="primary">Fertig</button></div>
+    <div class="hint">Jede Einstellung einzeln wählen. Wird als Preset „Eigene“ gespeichert und beim nächsten Betreten des Festivals übernommen.</div>
+    <div id="gfxRows" class="stack" style="gap:8px"></div>
+  </div>
+</div>
 <div id="binds" class="screen overlay scroll" hidden>
   <div class="panel stack" style="width:min(680px,100%)">
     <div class="row" style="justify-content:space-between"><h2>Tastenbelegung</h2><button id="bindClose" class="primary">Fertig</button></div>
@@ -161,20 +169,20 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/mapdata.js?v=20261015d"></script>
-<script src="js/config.js?v=20261015d"></script>
-<script src="js/render.js?v=20261015d"></script>
-<script src="js/cars.js?v=20261015d"></script>
-<script src="js/world.js?v=20261015d"></script>
-<script src="js/input.js?v=20261015d"></script>
-<script src="js/audio.js?v=20261015d"></script>
-<script src="js/radio.js?v=20261015d"></script>
-<script src="js/studio.js?v=20261015d"></script>
-<script src="js/gameplay.js?v=20261015d"></script>
-<script src="js/hud.js?v=20261015d"></script>
-<script src="js/nav.js?v=20261015d"></script>
-<script src="js/main.js?v=20261015d"></script>
-<script src="js/net.js?v=20261015d"></script>
-<script src="js/ui.js?v=20261015d"></script>
+<script src="js/mapdata.js?v=20261015e"></script>
+<script src="js/config.js?v=20261015e"></script>
+<script src="js/render.js?v=20261015e"></script>
+<script src="js/cars.js?v=20261015e"></script>
+<script src="js/world.js?v=20261015e"></script>
+<script src="js/input.js?v=20261015e"></script>
+<script src="js/audio.js?v=20261015e"></script>
+<script src="js/radio.js?v=20261015e"></script>
+<script src="js/studio.js?v=20261015e"></script>
+<script src="js/gameplay.js?v=20261015e"></script>
+<script src="js/hud.js?v=20261015e"></script>
+<script src="js/nav.js?v=20261015e"></script>
+<script src="js/main.js?v=20261015e"></script>
+<script src="js/net.js?v=20261015e"></script>
+<script src="js/ui.js?v=20261015e"></script>
 </body>
 </html>
