@@ -20,6 +20,11 @@ const EIGENE_SONGS = [
   ['hester-kyoto.mp3',                      'Hester – KYOTO'],
   ['no-hero-tatsunoshin-all-or-nothing.mp3','No Hero, Tatsunoshin – All Or Nothing'],
   ['syn-cole-feel-good.mp3',                'Syn Cole – Feel Good'],
+  ['ghostnaps-grow-apart.mp3',              'Ghostnaps – grow apart'],
+  ['magnus-like-this.mp3',                  'Magnus – Like This'],
+  ['nomra-your-body.mp3',                   'Nomra – Your Body'],
+  ['whats-gud-magnus-sanity.mp3',           'Whats Gud, Magnus – Sanity'],
+  ['fergo-sam-ourt-love-me.mp3',            'FERGO, Sam Ourt – Love Me'],
 ];
 const RADIO={ on:store.get('radio',1)?1:0, state:'off', song:null, el:null, files:[], timer:null, last:-1, dj:[], djLast:-1, djEl:null, voice:null, n:0 };
 const SONG_NAMES=['Neon Drift','Fuji Sunrise','Midnight Touge','Kirschblüten-Turbo','Shibuya Lights','Redline Romance','Coastline 300','Boost & Bass','Tokyo Overdrive','Sakura Sprint','Gipfelsturm','Nachtfahrt'];
