@@ -455,11 +455,11 @@ function buildVillages(scene, hq, dm){
 /* ---------- Ultra: fallende Blätter & Kirschblüten rund um die Kamera ---------- */
 function makeLeaves(scene, n){
   const tex=canvasTex(32,32,(c,w,h)=>{ c.clearRect(0,0,w,h); c.fillStyle='#fff'; c.beginPath(); c.ellipse(16,16,14,7,.6,0,7); c.fill(); c.strokeStyle='rgba(0,0,0,.25)'; c.lineWidth=1.5; c.beginPath(); c.moveTo(5,24); c.lineTo(27,8); c.stroke(); });
-  const m=new THREE.MeshStandardMaterial({map:tex, alphaTest:.5, side:THREE.DoubleSide, roughness:.75, metalness:0, envMapIntensity:.4});
+  const m=new THREE.MeshLambertMaterial({map:tex, alphaTest:.5, side:THREE.DoubleSide, emissive:new THREE.Color(.16,.14,.13)});
   const im=new THREE.InstancedMesh(new THREE.PlaneGeometry(.34,.24), m, n); im.frustumCulled=false; im.receiveShadow=true; scene.add(im);
   const PAL=['#ffb7d0','#ffd2e1','#f7a8c4','#7fae3e','#a6c94f','#d9a23c','#c8642b'], c=new THREE.Color(), L=[];
   const spawn=(l,top)=>{ const cx=camera.position.x, cz=camera.position.z, a=Math.random()*6.283, r=4+Math.sqrt(Math.random())*42; l.x=cx+Math.cos(a)*r; l.z=cz+Math.sin(a)*r;
-    l.g=surfaceAt(l.x,l.z,false); l.y=l.g+(top?rnd(3,18):rnd(10,18)); l.v=rnd(.6,1.3); l.p=rnd(0,6.283); l.f=rnd(1.5,3.2); l.rest=0; };
+    l.g=surfaceAt(l.x,l.z,false); l.y=l.g+(top?rnd(1,9):rnd(5,10)); l.v=rnd(.6,1.3); l.p=rnd(0,6.283); l.f=rnd(1.5,3.2); l.rest=0; };
   for(let i=0;i<n;i++){ const l={}; spawn(l,true); L.push(l); const pink=Math.hypot(l.x,l.z)<500||Math.random()<.3; c.set(pink?PAL[i%3]:PAL[3+i%4]); if(HQ()) c.convertSRGBToLinear(); im.setColorAt(i,c); }
   im.instanceColor.needsUpdate=true;
   const o=new THREE.Object3D(); let t=0;

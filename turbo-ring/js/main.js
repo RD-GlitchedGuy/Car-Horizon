@@ -1,3 +1,4 @@
+const _vS=new THREE.Vector3(), _v4=new THREE.Vector3();
 "use strict";
 /* =====================================================================
    SPIELSCHLEIFE
@@ -72,6 +73,10 @@ function frame(now){
   if(W.clouds){ W.clouds.position.set(camera.position.x*.85+(now*.002)%1200, 0, camera.position.z*.85); }
   if(W.grass){ const u=W.grass.material.uniforms; u.uCam.value.copy(camera.position); u.uTime.value=now/1000; }
   updatePointScale();
+  if(gradePass && gradePass.uniforms.ultra.value){ const U=gradePass.uniforms, me2=game.me; U.time.value=now/1000;
+    const sp=me2&&game.mode==='roam'?Math.abs(me2.fwd||0)/me2.def.maxSpeed:0; U.speed.value+=(clamp((sp-.45)/.55,0,1)-U.speed.value)*Math.min(1,dt*3);
+    const sv=_vS.copy(W.sunDir).multiplyScalar(2000).add(camera.position).project(camera), facing=_v4.set(0,0,-1).applyQuaternion(camera.quaternion).dot(W.sunDir);
+    U.sun.value.set(sv.x*.5+.5, sv.y*.5+.5); U.sunVis.value=facing>0 && W.sunDir.y>-.02 ? sstep(0,.35,facing)*(1-sstep(.9,1.6,Math.max(Math.abs(sv.x),Math.abs(sv.y))))*(1-(W.night||0)) : 0; }
   draw(W.scene, camera);
 }
 // nach dem Zieleinlauf fährt der Autopilot weiter
