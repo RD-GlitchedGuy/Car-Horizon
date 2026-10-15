@@ -68,7 +68,7 @@ function physics(r, inp, dt){
     const surf=onRoad?1:d.offroad, maxLat=d.grip*1.55*(onRoad?1:.7)*(inp.hb?.38:1);
     // Lenken: die Gierrate wird durch die Haftgrenze begrenzt – zu schnell in der Kurve = schieben/rutschen
     const f0=r.vx*Math.sin(r.h)+r.vz*Math.cos(r.h), vs=Math.max(Math.abs(f0),1);
-    r.h+=inp.steer*Math.min(d.turn*clamp(vs/6,0,1), maxLat*(inp.hb?2.6:1.02)/vs)*Math.sign(f0||1)*dt;
+    r.h+=inp.steer*Math.min(d.turn*clamp((Math.abs(f0)-.4)/5.6,0,1), maxLat*(inp.hb?2.6:1.02)/vs)*Math.sign(f0||1)*dt;
     const fx=Math.sin(r.h), fz=Math.cos(r.h);
     let fwd=r.vx*fx+r.vz*fz, lat=r.vx*fz-r.vz*fx;
     const maxS=d.maxSpeed*(onRoad?1:d.offroad), A=d.accel*.55*surf;
@@ -89,7 +89,9 @@ function physics(r, inp, dt){
   const wasAir=r.air; r.vy-=GRAV*dt; r.y+=r.vy*dt;
   const g1=surfaceAt(r.x,r.z);
   let impact=0;
-  if(r.y<=g1){ const gv=(g1-g0)/dt; if(wasAir && r.vy<-8) r.landed=-r.vy; if(wasAir && r.vy<-16){ r.vx*=.85; r.vz*=.85; } r.y=g1; r.vy=Math.max(r.vy, Math.min(gv,30)); r.air=false; }
+  if(r.y<=g1 && !wasAir && g1-g0>1.1){ // Stufe/Wand (z. B. Brückenkante, Böschung): nicht hochkatapultieren, sondern abprallen
+    r.x-=r.vx*dt; r.z-=r.vz*dt; impact=Math.hypot(r.vx,r.vz)*.4; r.vx*=-.25; r.vz*=-.25; r.y=g0; r.vy=0; r.air=false; }
+  else if(r.y<=g1){ const gv=Math.min((g1-g0)/dt,20); if(wasAir && r.vy<-8) r.landed=-r.vy; if(wasAir && r.vy<-16){ r.vx*=.85; r.vz*=.85; } r.y=g1; r.vy=Math.max(r.vy, gv); r.air=false; }
   else r.air = r.y > g1+.3;
   if(r.air) r.airT+=dt; else r.airT=0;
   // Hindernisse & andere Autos

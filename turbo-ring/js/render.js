@@ -8,7 +8,7 @@ const PRESETS = {
   // Potato = die bisherige Grafik
   potato: Object.assign({}, PBASE, { label:'Potato', hq:false, pr:Math.min(DPR, HAS_TOUCH?1.5:1.75), seg:300, trees:4200, buildings:300, fog:[300,1500], far:4200, shadows:0, bloom:false, grass:0, clouds:0, rocks:0, rails:false, lamps:false, fx:60, skid:false, aniso:4, carSeg:0, lod:0, dyn:false }),
   normal: Object.assign({}, PBASE, { label:'Normal', hq:true, pr:Math.min(DPR, 1.5), seg:340, trees:6000, buildings:340, fog:[380,2100], far:4200, shadows:2048, shadowR:60, bloom:false, grass:HAS_TOUCH?4000:9000, grassS:64, clouds:36, rocks:150, rails:true, lamps:true, fx:160, skid:true, aniso:8, carSeg:1, lod:60, dyn:true }),
-  ultra:  Object.assign({}, PBASE, { label:'Ultra', hq:true, pr:Math.min(DPR, 2), seg:400, trees:8000, buildings:380, fog:[450,2600], far:5000, shadows:4096, shadowR:85, bloom:true, grass:16000, grassS:92, clouds:56, rocks:260, rails:true, lamps:true, fx:260, skid:true, aniso:16, carSeg:2, lod:120, dyn:true }),
+  ultra:  Object.assign({}, PBASE, { label:'Ultra', hq:true, pr:Math.min(DPR, 2), seg:400, trees:8000, buildings:380, fog:[450,2600], far:5000, shadows:4096, shadowR:85, bloom:true, grass:16000, grassS:92, clouds:56, rocks:260, rails:true, lamps:true, fx:360, skid:true, aniso:16, carSeg:2, lod:120, dyn:true, leaves:900 }),
 };
 let activeGfx = PRESETS[cfg.gfx] ? cfg.gfx : 'normal';
 const GP = () => PRESETS[activeGfx];

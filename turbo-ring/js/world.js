@@ -8,7 +8,7 @@ function hmAt(x,z){ const M=MAPDATA.hm; const fx=clamp((x-M.x0)/M.dx,0,M.nx-1.00
   return lerp(lerp(HM[o],HM[o+1],u), lerp(HM[o+M.nx],HM[o+M.nx+1],u), v); }
 const CITY=MAPDATA.city, HUB_H=hmAt(0,0), CITY_H=hmAt(CITY.x,CITY.z);
 function baseH(x,z){
-  let h=hmAt(x,z);
+  let h=hmAt(x,z); if(MAPDATA.baked) return h;   // Plateau, Stadt, Fuji und Straßenbetten sind schon eingebacken
   const hub=1-sstep(MAPDATA.hub.r0,MAPDATA.hub.r1,Math.hypot(x,z)); if(hub>0) h=lerp(h,HUB_H,hub*.95);
   const cx=Math.max(0,Math.abs(x-CITY.x)-CITY.hw), cz=Math.max(0,Math.abs(z-CITY.z)-CITY.hd), city=1-sstep(0,60,Math.hypot(cx,cz)); if(city>0) h=lerp(h,CITY_H,city*.92);
   const fr=Math.hypot(x-FUJI.x,z-FUJI.z)/FUJI.r; if(fr<1){ const fh=FUJI.h*Math.pow(1-fr,1.55)+5*Math.sin(Math.atan2(x-FUJI.x,z-FUJI.z)*7)*fr*(1-fr); h=Math.max(h, lerp(h,h*.4+fh,sstep(1,.8,fr))); }
@@ -37,8 +37,8 @@ function roadQuery(x,z){
 function surfaceAt(x,z, ramps=true){
   let h=baseH(x,z); const q=roadQuery(x,z); G.onRoad=false; G.d=1e9; G.r=null; G.i=0;
   if(q){ G.d=q.d; G.r=q.r; G.i=q.i; const br=q.r.bridge && q.r.bridge[q.i];
-    if(br){ if(q.d<=ROAD_W/2+.6){ h=q.y; G.onRoad=true; } }
-    else { const t=sstep(W.flat, W.flat+24, q.d); h=q.y+(h-q.y)*t;
+    if(br){ if(q.d<=ROAD_W/2+2.2){ h=q.y; G.onRoad=q.d<=ROAD_W/2+.6; } }
+    else { const t=sstep(W.flat, W.flat+10, q.d); h=q.y+(h-q.y)*t;
     if(q.d<=ROAD_W/2+.6) G.onRoad=true; else h-=W.sink*sstep(ROAD_W/2+.6, ROAD_W/2+2.5, q.d); } }
   else h-=W.sink;
   if(ramps) for(const R of W.ramps){ const dx=x-R.x, dz=z-R.z; const u=dx*R.tx+dz*R.tz, v=dx*R.nx+dz*R.nz;
@@ -56,10 +56,12 @@ function buildRoadData(def){
   { const g=(def.grade||.09)*len/n; for(let it=0;it<6;it++){ for(let i=1;i<N;i++) ys[i]=clamp(ys[i],ys[i-1]-g,ys[i-1]+g); for(let i=N-2;i>=0;i--) ys[i]=clamp(ys[i],ys[i+1]-g,ys[i+1]+g); if(def.loop) ys[0]=clamp(ys[0],ys[N-1]-g,ys[N-1]+g); } ys=smoothArr(ys,5,def.loop); }  // max. ~9 % Steigung
   let bridge=null;
   if(def.id==='hwy'){ const wet=pts.map(p=>baseH(p.x,p.z)<WATER_Y+.8); let best=null, st=-1; for(let i=0;i<=N;i++){ if(i<N&&wet[i]){ if(st<0) st=i; } else if(st>=0){ if(!best||i-st>best[1]-best[0]) best=[st,i-1]; st=-1; } }
-    if(best && best[0]>14 && best[1]<N-15){ const ia=best[0]-10, ib=best[1]+10; bridge=pts.map((p,i)=>i>=ia&&i<=ib); const ya=ys[ia-1], yb=ys[ib+1]; for(let i=ia;i<=ib;i++) ys[i]=Math.max(lerp(ya,yb,(i-ia)/(ib-ia)), 8); ys=smoothArr(ys,6,true); } }
+    if(best && best[0]>14 && best[1]<N-15){ const ia=best[0]-24, ib=best[1]+24; bridge=pts.map((p,i)=>i>=ia&&i<=ib); const ya=ys[ia-1], yb=ys[ib+1]; for(let i=ia;i<=ib;i++){ const e=Math.min(i-ia,ib-i)/24; ys[i]=Math.max(lerp(ya,yb,(i-ia)/(ib-ia)), lerp(lerp(ya,yb,(i-ia)/(ib-ia)),8,sstep(0,1,e))); } ys=smoothArr(ys,10,true); } }
   if(!def.loop){ // Zufahrten: wo sie andere Straßen überlappen, exakt deren Höhe übernehmen, dann weich überblenden
     const snap=pts.map(p=>{ const q=roadQuery(p.x,p.z); return q && q.d<ROAD_W*1.25 ? q.y : null; }), K=30, base=ys.slice();
-    for(let i=0;i<N;i++){ let bk=1e9, by=0; for(let j=Math.max(0,i-K);j<=Math.min(N-1,i+K);j++) if(snap[j]!=null && Math.abs(j-i)<bk){ bk=Math.abs(j-i); by=snap[j]; } if(bk<=K) ys[i]=lerp(base[i], by, sstep(K,0,bk)); } }
+    for(let i=0;i<N;i++){ let bk=1e9, by=0; for(let j=Math.max(0,i-K);j<=Math.min(N-1,i+K);j++) if(snap[j]!=null && Math.abs(j-i)<bk){ bk=Math.abs(j-i); by=snap[j]; } if(bk<=K) ys[i]=lerp(base[i], by, sstep(K,0,bk)); }
+    // danach nochmal Steigung begrenzen (Einrastpunkte bleiben fest) – sonst Sprungschanzen an Kreuzungen
+    const g=(def.grade||.09)*len/n, fx=snap.map(v=>v!=null); for(let it=0;it<6;it++){ for(let i=1;i<N;i++) if(!fx[i]) ys[i]=clamp(ys[i],ys[i-1]-g,ys[i-1]+g); for(let i=N-2;i>=0;i--) if(!fx[i]) ys[i]=clamp(ys[i],ys[i+1]-g,ys[i+1]+g); } }
   pts.forEach((p,i)=>p.y=Math.max(ys[i], WATER_Y+1.2));
   const tan=[], nor=[];
   for(let i=0;i<N;i++){ const a=def.loop?pts[(i-1+N)%N]:pts[Math.max(0,i-1)], b=def.loop?pts[(i+1)%N]:pts[Math.min(N-1,i+1)];
@@ -408,6 +410,7 @@ function buildWorld(){
     W.bridgeMid={ i:mi, p:pm2.clone(), n:nm.clone(), t:tm.clone() }; } }
   // Checkpoint-Ring, Effekte
   W.ring=new THREE.Mesh(new THREE.TorusGeometry(10,.45,8,48), basic('#29d9ff',{transparent:true,opacity:.75,toneMapped:false})); W.ring.visible=false; scene.add(W.ring);
+  if(P.leaves) W.leaves=makeLeaves(scene, P.leaves);
   W.fx={ smoke:makeFX(scene, P.fx, TEX.smoke, false), glow:makeFX(scene, Math.max(90,P.fx>>1), TEX.smoke, true) }; W.pointMats.push(W.fx.smoke.mat, W.fx.glow.mat);
   W.skid = P.skid ? makeSkids(scene, 700) : null;
   drawWorldMap();
@@ -448,3 +451,23 @@ function buildVillages(scene, hq, dm){
       addObs({x,z,r:Math.min(w,d)*.5,top:h+ht}); n++; } }
   globalInstances(scene, g1, hm, L1, hq); globalInstances(scene, g2, hm, L2, hq); globalInstances(scene, rg, rm, LR, hq);
 }
+
+/* ---------- Ultra: fallende Blätter & Kirschblüten rund um die Kamera ---------- */
+function makeLeaves(scene, n){
+  const tex=canvasTex(32,32,(c,w,h)=>{ c.clearRect(0,0,w,h); c.fillStyle='#fff'; c.beginPath(); c.ellipse(16,16,14,7,.6,0,7); c.fill(); c.strokeStyle='rgba(0,0,0,.25)'; c.lineWidth=1.5; c.beginPath(); c.moveTo(5,24); c.lineTo(27,8); c.stroke(); });
+  const m=new THREE.MeshStandardMaterial({map:tex, alphaTest:.5, side:THREE.DoubleSide, roughness:.75, metalness:0, envMapIntensity:.4});
+  const im=new THREE.InstancedMesh(new THREE.PlaneGeometry(.34,.24), m, n); im.frustumCulled=false; im.receiveShadow=true; scene.add(im);
+  const PAL=['#ffb7d0','#ffd2e1','#f7a8c4','#7fae3e','#a6c94f','#d9a23c','#c8642b'], c=new THREE.Color(), L=[];
+  const spawn=(l,top)=>{ const cx=camera.position.x, cz=camera.position.z, a=Math.random()*6.283, r=4+Math.sqrt(Math.random())*42; l.x=cx+Math.cos(a)*r; l.z=cz+Math.sin(a)*r;
+    l.g=surfaceAt(l.x,l.z,false); l.y=l.g+(top?rnd(3,18):rnd(10,18)); l.v=rnd(.6,1.3); l.p=rnd(0,6.283); l.f=rnd(1.5,3.2); l.rest=0; };
+  for(let i=0;i<n;i++){ const l={}; spawn(l,true); L.push(l); const pink=Math.hypot(l.x,l.z)<500||Math.random()<.3; c.set(pink?PAL[i%3]:PAL[3+i%4]); if(HQ()) c.convertSRGBToLinear(); im.setColorAt(i,c); }
+  im.instanceColor.needsUpdate=true;
+  const o=new THREE.Object3D(); let t=0;
+  W.anim.push(dt=>{ t+=dt; const wx=Math.sin(t*.13)*.9+.6, wz=Math.cos(t*.09)*.6+.3, cx=camera.position.x, cz=camera.position.z;
+    for(let i=0;i<n;i++){ const l=L[i];
+      if(l.rest>0){ l.rest-=dt; if(l.rest<=0) spawn(l,false); }
+      else { l.y-=l.v*dt; l.x+=(wx+Math.sin(t*l.f+l.p)*.9)*dt; l.z+=(wz+Math.cos(t*l.f*.8+l.p)*.7)*dt; if(l.y<=l.g+.03){ l.y=l.g+.03; l.rest=rnd(1.5,4); } }
+      if((l.x-cx)**2+(l.z-cz)**2>2500) spawn(l,true);
+      o.position.set(l.x,l.y,l.z); if(l.rest>0) o.rotation.set(-Math.PI/2,0,l.p); else o.rotation.set(Math.sin(t*l.f+l.p)*1.2, t*l.f*.7+l.p, Math.cos(t*l.f*1.3+l.p)*.9); o.updateMatrix(); im.setMatrixAt(i,o.matrix); }
+    im.instanceMatrix.needsUpdate=true; });
+  return im; }

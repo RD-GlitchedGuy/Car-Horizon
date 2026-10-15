@@ -28,8 +28,7 @@ const ROAD_W = 16;
 const HALF = 2000;   // halbe Kartengröße in Metern (Karte = 4 km)
 // Straßen kommen aus der Japan-Karte (js/mapdata.js); dazu die Serpentine auf den Fuji
 function fujiSpiral(){ const F=MAPDATA.fuji, out=[]; for(let t=.3;t<=2.25*Math.PI*2;t+=.25){ const r=340-215*t/(2.25*Math.PI*2), a=Math.PI+t; out.push([F.x+r*Math.sin(a), F.z+r*Math.cos(a)]); } return out; }
-const ROADS = MAPDATA.roads.concat([
-  { id:'fuji', name:'Fuji-Bergstraße', loop:false, grade:.12, pts:[MAPDATA.roads.find(r=>r.id==='c17').pts.slice(-1)[0]].concat(fujiSpiral()) } ]);
+const ROADS = MAPDATA.roads;
 /* PR-Stunts: Blitzer (km/h), Driftzonen (Punkte), Gefahrenschilder (Sprungweite m) */
 const STUNTS = [
   { id:'t1', type:'trap',  name:'Blitzer Seeufer',      road:'hwy',  at:.12,  stars:[170,210,250] },
