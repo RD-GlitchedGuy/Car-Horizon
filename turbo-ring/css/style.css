@@ -168,3 +168,5 @@ button.bind.wait{border-color:var(--accent);color:var(--accent);animation:pulse 
 #mapSide .label{white-space:normal;line-height:1.4;letter-spacing:.06em}
 #mapRoute{font-size:12px;padding:8px 10px}
 @media (orientation:portrait){ #mapSide{width:100%} }
+#navDist{position:absolute;left:calc(14px + var(--sl));bottom:calc(22px + var(--sb) + clamp(110px,26vmin,190px));background:rgba(10,14,22,.8);color:#29d9ff;font:italic 700 15px 'Chakra Petch',sans-serif;padding:4px 10px;border-radius:6px;border-left:3px solid #29b6ff}
+body.touch-ui #navDist{left:auto;bottom:auto;right:calc(14px + var(--sr));top:calc(var(--st) + 72px + clamp(0px,6vmin,40px) + clamp(110px,26vmin,190px))}

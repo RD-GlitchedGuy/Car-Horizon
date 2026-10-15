@@ -31,8 +31,8 @@ function navReset(){ NAV.w=W; NAV.nodes=null; NAV.target=null; NAV.route=null; N
 function navMesh(){ const MAX=Math.ceil(NAV_AHEAD/2.4)+4, g=new THREE.BufferGeometry(); NAV.pos=new Float32Array(MAX*6); NAV.col=new Float32Array(MAX*6); const uv=new Float32Array(MAX*4), idx=[];
   for(let i=0;i<MAX-1;i++){ const a=i*2; idx.push(a,a+1,a+2, a+1,a+3,a+2); }
   g.setAttribute('position',new THREE.BufferAttribute(NAV.pos,3)); g.setAttribute('color',new THREE.BufferAttribute(NAV.col,3)); g.setAttribute('uv',new THREE.BufferAttribute(uv,2)); g.setIndex(idx);
-  const tex=canvasTex(64,64,(c,w,h)=>{ c.clearRect(0,0,w,h); c.fillStyle='#fff'; c.beginPath(); c.moveTo(6,h-6); c.lineTo(w/2,18); c.lineTo(w-6,h-6); c.lineTo(w-20,h-6); c.lineTo(w/2,36); c.lineTo(20,h-6); c.closePath(); c.fill(); }, false);
-  const m=new THREE.MeshBasicMaterial({map:tex, vertexColors:true, transparent:true, opacity:.9, depthWrite:false, toneMapped:false, polygonOffset:true, polygonOffsetFactor:-4, side:THREE.DoubleSide});
+  const tex=canvasTex(64,64,(c,w,h)=>{ c.clearRect(0,0,w,h); c.fillStyle='#fff'; c.beginPath(); c.moveTo(6,h-6); c.lineTo(w/2,18); c.lineTo(w-6,h-6); c.lineTo(w-24,h-6); c.lineTo(w/2,42); c.lineTo(24,h-6); c.closePath(); c.fill(); }, false);
+  const m=new THREE.MeshBasicMaterial({map:tex, vertexColors:true, transparent:true, opacity:1, depthWrite:false, toneMapped:false, polygonOffset:true, polygonOffsetFactor:-4, side:THREE.DoubleSide});
   NAV.mesh=new THREE.Mesh(g,m); NAV.mesh.frustumCulled=false; NAV.mesh.renderOrder=3; NAV.max=MAX; W.scene.add(NAV.mesh);
   const bm=basic('#29d9ff',{transparent:true,opacity:.4,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false,side:THREE.DoubleSide});
   NAV.beacon=new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.5,160,20,1,true), bm); NAV.beacon.visible=false; W.scene.add(NAV.beacon); }
@@ -42,20 +42,21 @@ function navUpdate(dt){ const me=game.me; if(!W||!me||game.mode!=='roam') return
   const race=game.race && me.inRace ? game.race : null; let pts=null, start=0;
   if(race){ const r=race.road; pts=r.pts; start=me.ridx||0; }
   else if(NAV.target){ const T=NAV.target; if(Math.hypot(me.x-T.x, me.z-T.z)<30){ navClear(); toast('🏁 Ziel erreicht'); blip(880,.15,'sine',.12); blip(1320,.2,'sine',.1,.12); }
-    else { NAV.acc+=dt; if(!NAV.route || NAV.acc>2){ NAV.acc=0; if(!NAV.nodes) navBuild(); NAV.route=navPath(navNode(me.x,me.z), T.node); } pts=NAV.route; } }
+    else { NAV.acc+=dt; if(!NAV.route || NAV.acc>2){ NAV.acc=0; if(!NAV.nodes) navBuild(); NAV.route=navPath(navNode(me.x,me.z), T.node); if(NAV.route){ const r0=NAV.route[0], gap=Math.hypot(r0.x-me.x,r0.z-me.z), lead=[]; for(let s=0;s<gap;s+=2.5){ const f=s/gap, x=lerp(me.x,r0.x,f), z=lerp(me.z,r0.z,f); lead.push({x,z,y:surfaceAt(x,z,false)}); } NAV.route=lead.concat(NAV.route); } } pts=NAV.route; } }
   NAV.beacon.visible=!race && !!NAV.target; if(NAV.beacon.visible){ NAV.beacon.position.set(NAV.target.x, surfaceAt(NAV.target.x,NAV.target.z)+80, NAV.target.z); }
+  const nd=$('#navDist'); if(nd){ const on=!race && NAV.target && NAV.route; nd.hidden=!on; if(on){ let d=0; const R=NAV.route; for(let i=1;i<R.length;i++) d+=Math.hypot(R[i].x-R[i-1].x,R[i].z-R[i-1].z); nd.textContent='📍 '+(d>=1000?(d/1000).toFixed(1)+' km':Math.round(d)+' m'); } }
   if(!pts || !cfg.navline || pts.length<3){ NAV.mesh.visible=false; return; }
   // Nächsten Punkt vor dem Auto suchen
   const loop=!!race && race.road.loop, L=pts.length, at=i=>pts[loop?((i%L)+L)%L:Math.min(L-1,Math.max(0,i))];
-  if(!race){ let bd=1e18; for(let i=0;i<Math.min(L,80);i++){ const p=pts[i], d=(p.x-me.x)**2+(p.z-me.z)**2; if(d<bd){ bd=d; start=i; } } }
-  const v=Math.abs(me.fwd||0), aLat=(me.def.grip||7)*1.05, BRAKE=13, H=1.6, P=NAV.pos, Cc=NAV.col; let n=0, dist=0, prev=null;
-  for(let k=0;n<NAV.max && dist<NAV_AHEAD;k++){ const i=start+k; if(!loop && i>=L) break; const p=at(i); if(prev) dist+=Math.hypot(p.x-prev.x,p.z-prev.z); prev=p; if(dist<5) continue;
+  if(!race){ let bd=1e18; for(let i=0;i<L;i++){ const p=pts[i], d=(p.x-me.x)**2+(p.z-me.z)**2; if(d<bd){ bd=d; start=i; } } }
+  const v=Math.abs(me.fwd||0), aLat=(me.def.grip||7)*1.05, BRAKE=13, H=2.2, P=NAV.pos, Cc=NAV.col; let n=0, dist=0, prev=null;
+  for(let k=0;n<NAV.max && dist<NAV_AHEAD;k++){ const i=start+k; if(!loop && i>=L) break; const p=at(i); if(prev) dist+=Math.hypot(p.x-prev.x,p.z-prev.z); prev=p; if(dist<3.5) continue;
     const a=at(i-2), b=at(i+2), tx=b.x-a.x, tz=b.z-a.z, tl=Math.hypot(tx,tz)||1, nx=-tz/tl, nz=tx/tl;
     // Kurvenradius aus drei Punkten → sichere Geschwindigkeit → nötige Bremsverzögerung
     const c=at(i+6), d0=at(i-6), ax=p.x-d0.x, az=p.z-d0.z, bx=c.x-p.x, bz=c.z-p.z, cr=Math.abs(ax*bz-az*bx), la=Math.hypot(ax,az), lb=Math.hypot(bx,bz), lc=Math.hypot(c.x-d0.x,c.z-d0.z);
     const R=cr>1e-3 ? la*lb*lc/(2*cr) : 1e4, vs=Math.min(me.def.maxSpeed, Math.sqrt(aLat*R)), need=(v*v-vs*vs)/(2*Math.max(dist,2))/BRAKE;
     if(need>.55) _nc.set('#ff2a3a'); else if(need>.2) _nc.set('#ffc42e'); else _nc.set('#29b6ff'); if(HQ()) _nc.convertSRGBToLinear();
-    const y=p.y+.14, f=Math.min(1,(dist-5)/8);
+    const y=Math.max(p.y, surfaceAt(p.x,p.z))+.18, f=Math.min(1,(dist-3.5)/5);
     P.set([p.x+nx*H, y, p.z+nz*H, p.x-nx*H, y, p.z-nz*H], n*6); for(let s=0;s<2;s++){ Cc[n*6+s*3]=_nc.r*f; Cc[n*6+s*3+1]=_nc.g*f; Cc[n*6+s*3+2]=_nc.b*f; }
     NAV.mesh.geometry.attributes.uv.array.set([0,dist/2.6, 1,dist/2.6], n*4); n++; }
   const g=NAV.mesh.geometry; g.setDrawRange(0, Math.max(0,(n-1)*6)); g.attributes.position.needsUpdate=g.attributes.color.needsUpdate=g.attributes.uv.needsUpdate=true; NAV.mesh.visible=n>1; }

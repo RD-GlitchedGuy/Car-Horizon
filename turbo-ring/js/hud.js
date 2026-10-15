@@ -59,7 +59,7 @@ function drawBigMap(){ if($('#map').hidden) return; const v=mapView(), c=mapCtx;
     if(it===mapSel||it.kind==='event'){ c.font=`italic 700 ${13*v.dpr}px "Chakra Petch",sans-serif`; c.fillStyle='#fff'; c.textAlign='left'; c.fillText(it.name, x+R+5*v.dpr, y+4*v.dpr); } });
   game.racers.forEach(r=>{ if(!r.mesh.visible) return; const [x,y]=P(r.x,r.z); c.beginPath(); c.arc(x,y,(r.local?7:r.bot?3:5)*v.dpr,0,7); c.fillStyle=r.local?'#ff2e88':r.bot?'#c8ced8':r.paint; c.fill(); if(r.local){ c.lineWidth=3*v.dpr; c.strokeStyle='#fff'; c.stroke(); } });
   requestAnimationFrame(drawBigMap); }
-mapCan.addEventListener('pointerdown', e=>{ const v=mapView(), r=mapCan.getBoundingClientRect(); const mx=(e.clientX-r.left)*v.dpr, my=(e.clientY-r.top)*v.dpr; let best=null, bd=(28*v.dpr)**2;
+mapCan.addEventListener('pointerdown', e=>{ const v=mapView(), r=mapCan.getBoundingClientRect(); const mx=(e.clientX-r.left)*v.dpr, my=(e.clientY-r.top)*v.dpr; let best=null, bd=(14*v.dpr)**2;
   mapItems.forEach(it=>{ const [a,b]=m2p(it.x,it.z); const x=v.ox+a*v.s, y=v.oy+b*v.s, d=(x-mx)**2+(y-my)**2; if(d<bd){ bd=d; best=it; } });
   if(best){ if(mapSel===best) travel(best); else { mapSel=best; best.btn && best.btn.scrollIntoView({block:'nearest'}); } return; }
   // freie Stelle: Wegpunkt setzen (auf bestehenden Wegpunkt tippen = löschen)
