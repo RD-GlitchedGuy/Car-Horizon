@@ -26,38 +26,22 @@ const PAINTS = ['#e8322a','#2a6fe8','#f0a020','#e6e6e6','#4fd18b','#9b4fe8','#1b
 /* WELT — Straßen als Splines (x,z). loop:true = Rundkurs mit Event. In Japan wird links gefahren. */
 const ROAD_W = 16;
 const HALF = 2000;   // halbe Kartengröße in Metern (Karte = 4 km)
-// Serpentine: 2¼ Umrundungen um den Fuji bis kurz unter den Gipfel
-function fujiSpiral(){ const out=[]; for(let t=.35;t<=2.25*Math.PI*2;t+=.25){ const r=600-490*t/(2.25*Math.PI*2); out.push([150+r*Math.sin(t), -1400+r*Math.cos(t)]); } return out; }
-const ROADS = [
-  { id:'hwy',  name:'Küsten-Schnellstraße', loop:true, laps:1, pts:[[-650,-100],[-620,-420],[-420,-560],[-150,-520],[120,-560],[420,-600],[650,-420],[720,-100],[700,200],[740,520],[520,700],[200,660],[-100,720],[-420,640],[-640,420],[-700,150]] },
-  { id:'pass', name:'Kaze-Pass',            loop:true, laps:2, pts:[[-250,-300],[-120,-260],[-40,-330],[40,-280],[140,-330],[230,-280],[300,-380],[230,-470],[100,-430],[0,-480],[-110,-420],[-220,-470],[-320,-400]] },
-  { id:'city', name:'Neon-City Circuit',    loop:true, laps:3, pts:[[450,260],[600,270],[615,420],[600,580],[450,595],[300,580],[285,420],[300,270]] },
-  { id:'fest', name:'Festival-Rundkurs',    loop:true, laps:3, pts:[[-200,-60],[-60,-140],[120,-120],[230,-20],[200,120],[60,170],[-80,130],[-230,90]] },
-  { id:'c1', loop:false, pts:[[-230,90],[-400,80],[-560,100],[-700,150]] },
-  { id:'c2', loop:false, pts:[[200,120],[250,190],[300,270]] },
-  { id:'c3', loop:false, pts:[[615,420],[665,410],[716,380]] },
-  { id:'c4', loop:false, pts:[[-60,-140],[-50,-230],[-40,-330]] },
-  { id:'c5', loop:false, pts:[[-320,-400],[-380,-480],[-420,-560]] },
-  { id:'inaka',   name:'Inaka-Landstraße',   loop:true, laps:1, pts:[[-780,-320],[-1000,-430],[-1240,-320],[-1350,0],[-1300,350],[-1150,650],[-900,820],[-720,720],[-800,420],[-900,150],[-860,-110]] },
-  { id:'minami',  name:'Minami-Küstenroute', loop:true, laps:1, pts:[[200,900],[600,880],[1000,950],[1260,1150],[1100,1360],[600,1390],[100,1350],[-300,1260],[-460,1010],[-200,880]] },
-  { id:'higashi', name:'Higashi-Hügelring',  loop:true, laps:1, pts:[[1150,-500],[1420,-650],[1640,-350],[1620,100],[1680,500],[1420,760],[1170,520],[1120,0]] },
-  { id:'c6', loop:false, pts:[[-700,150],[-800,150],[-900,150]] },
-  { id:'c7', loop:false, pts:[[200,660],[200,780],[200,900]] },
-  { id:'c8', loop:false, pts:[[650,-420],[900,-470],[1150,-500]] },
-  { id:'c9', loop:false, pts:[[-460,1010],[-700,950],[-900,820]] },
-  { id:'fuji', name:'Fuji-Bergstraße', loop:false, grade:.12, pts:[[230,-470],[205,-620]].concat(fujiSpiral()) },
-];
+// Straßen kommen aus der Japan-Karte (js/mapdata.js); dazu die Serpentine auf den Fuji
+function fujiSpiral(){ const F=MAPDATA.fuji, out=[]; for(let t=.3;t<=2.25*Math.PI*2;t+=.25){ const r=340-215*t/(2.25*Math.PI*2), a=Math.PI+t; out.push([F.x+r*Math.sin(a), F.z+r*Math.cos(a)]); } return out; }
+const ROADS = MAPDATA.roads.concat([
+  { id:'fuji', name:'Fuji-Bergstraße', loop:false, grade:.12, pts:[MAPDATA.roads.find(r=>r.id==='c17').pts.slice(-1)[0]].concat(fujiSpiral()) } ]);
 /* PR-Stunts: Blitzer (km/h), Driftzonen (Punkte), Gefahrenschilder (Sprungweite m) */
 const STUNTS = [
-  { id:'t1', type:'trap',  name:'Blitzer Kaiblick',     road:'hwy',  at:.06,  stars:[170,210,250] },
+  { id:'t1', type:'trap',  name:'Blitzer Seeufer',      road:'hwy',  at:.12,  stars:[170,210,250] },
   { id:'t2', type:'trap',  name:'Blitzer Neonmeile',    road:'city', at:.08,  stars:[140,175,205] },
-  { id:'t3', type:'trap',  name:'Blitzer Talbrücke',    road:'hwy',  at:.56,  stars:[170,210,250] },
-  { id:'d1', type:'drift', name:'Driftzone Kaze',       road:'pass', from:.1, to:.3,  stars:[6000,12000,20000] },
-  { id:'d2', type:'drift', name:'Driftzone Hafen',      road:'hwy',  from:.82,to:.9,  stars:[5000,10000,18000] },
-  { id:'j1', type:'jump',  name:'Gefahrenschild Klippe',road:'hwy',  at:.32,  stars:[45,70,95] },
-  { id:'t4', type:'trap',  name:'Blitzer Minami',       road:'minami', at:.3, stars:[170,210,250] },
+  { id:'t3', type:'trap',  name:'Blitzer Seebrücke',    road:'hwy',  at:.62,  stars:[170,210,250] },
+  { id:'t4', type:'trap',  name:'Blitzer Startbahn',    road:'c6',   at:.5,   stars:[180,220,260] },
+  { id:'d1', type:'drift', name:'Driftzone Minami',     road:'pass', from:.1, to:.3,  stars:[6000,12000,20000] },
+  { id:'d2', type:'drift', name:'Driftzone Seeufer',    road:'hwy',  from:.82,to:.9,  stars:[5000,10000,18000] },
   { id:'d3', type:'drift', name:'Driftzone Fuji',       road:'fuji', from:.35, to:.6, stars:[8000,16000,26000] },
-  { id:'j2', type:'jump',  name:'Gefahrenschild Reisfeld',road:'c1', at:.5,   stars:[40,62,85] },
+  { id:'d4', type:'drift', name:'Driftzone Bergstraße', road:'c9',   from:.2, to:.7,  stars:[6000,12000,20000] },
+  { id:'j1', type:'jump',  name:'Gefahrenschild Hügel', road:'hwy',  at:.3,   stars:[45,70,95] },
+  { id:'j2', type:'jump',  name:'Gefahrenschild Reisfeld',road:'c16', at:.5,  stars:[40,62,85] },
 ];
 const DRIVATARS = ['Haruto','Yuki','Kenji','Mika','Sora','Ren','Aoi','Daichi','Hana','Takumi','Emi','Riku','Nao','Kaito'];
 

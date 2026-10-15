@@ -26,7 +26,9 @@ function drawMinimap(){ const S=mm.width, me=game.me, c=mmc; c.clearRect(0,0,S,S
   c.restore();
   c.fillStyle='#ff2e88'; c.beginPath(); c.moveTo(S/2,S/2-14); c.lineTo(S/2+10,S/2+10); c.lineTo(S/2,S/2+5); c.lineTo(S/2-10,S/2+10); c.closePath(); c.fill(); c.lineWidth=2; c.strokeStyle='#fff'; c.stroke(); }
 function nextCp(){ const race=game.race, N=race.road.N, step=Math.max(20,Math.floor(N/14)); return ((Math.floor(game.me.ridx/step)+1)*step)%N; }
-function regionAt(x,z){ if(Math.hypot(x,z)<270) return 'Festivalgelände'; if(Math.max(Math.abs(x-460)-230,Math.abs(z-430)-230)<0) return 'Neon-City'; if(Math.hypot(x-FUJI.x,z-FUJI.z)<FUJI.r) return 'Fuji'; if(z<-220) return x>1000?'Higashi-Hügel':'Kaze-Berge'; if(x>1000) return 'Higashi-Hügel'; if(x<-760) return 'Inaka-Dörfer'; if(z>820) return 'Minami-Küste'; if(x<-480) return 'Westküste'; if(x>150 && z>-240 && z<230) return 'Kirschblütental'; if(z>480) return 'Südstrand'; return 'Reisfeld-Hügel'; }
+function regionAt(x,z){ if(Math.hypot(x,z)<230) return 'Festivalgelände'; if(Math.abs(x-CITY.x)<CITY.hw+30 && Math.abs(z-CITY.z)<CITY.hd+30) return 'Neon-City';
+  if(Math.hypot(x-FUJI.x,z-FUJI.z)<FUJI.r) return 'Fuji'; const L=MAPDATA.lake; if(Math.hypot(x-L[0],z-L[1])<520) return 'Seeufer'; const F=MAPDATA.forest; if(Math.hypot(x-F[0],z-F[1])<F[2]+40) return 'Zedernwald';
+  const R=MAPDATA.rondell; if(Math.hypot(x-R[0],z-R[1])<160) return 'Rondell-Hügel'; if(z<-330) return 'Kaze-Berge'; if(z>620) return 'Minami-Täler'; return x<-300?'Reisfeld-Hügel':'Kirschblütental'; }
 function updateHudMode(){ const inR=!!(game.me && game.me.inRace); $('#roamBox').hidden=inR; $('#raceBox').hidden=!inR; $('#timeBox').hidden=!inR; if(W && W.ring) W.ring.visible=inR; if(!inR){ $('#count').hidden=true; $('#wrong').hidden=true; } }
 let promptTarget=null;
 function updatePrompt(){

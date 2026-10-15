@@ -92,7 +92,7 @@ function enterWorld(cine){
   }, 30);
 }
 // Schnitte passend zur Intro-Musik (Akzente bei 8 · 10 · 18,25 · 22,8 · 28 · 40,5 · Höhepunkt ab 44,75 s)
-const CINE=[[0,'establish'],[8,'front'],[10.05,'side'],[14,'rear'],[18.25,'bridge'],[22.8,'drone'],[27.95,'orbit'],[36,'stage'],[40.45,'car'],[44.75,'finale']];
+const CINE=[[0,'establish'],[8,'front'],[10.05,'side'],[14,'rear'],[18.25,'bridge'],[22.8,'city'],[27.95,'fuji'],[32.5,'orbit'],[36,'stage'],[40.45,'car'],[44.75,'finale']];
 const FW_T=[44.75,45.25,45.7,46.15,46.6,47.1,47.55,48,48.5,48.95,49.4,49.85,50.35,50.8,51.3,51.75,52.2];
 function cineEnter(type){ const me=game.me, hw=W.byId.hwy, go=(i,v)=>{ placeOnRoad(me,hw,(i+hw.N)%hw.N,-3.6); me.road=hw; const t=hw.tan[(i+hw.N)%hw.N]; me.vx=t.x*v; me.vz=t.z*v; me.fwd=v; };
   if(type==='front') go(W.bridgeMid?W.bridgeMid.i+200:900, 26);
@@ -102,13 +102,15 @@ function cineCamera(r,t,dt){
   let si=0; while(si<CINE.length-1 && t>=CINE[si+1][0]) si++; const [t0,type]=CINE[si], t1=si<CINE.length-1?CINE[si+1][0]:53.5, k=clamp((t-t0)/(t1-t0),0,1);
   if(game.cineShot!==si){ game.cineShot=si; cineEnter(type); }
   const s=Math.sin(r.h), c=Math.cos(r.h), sx=c, sz=-s, hy=surfaceAt(0,0,false); let cap='';
-  if(type==='establish'){ camera.position.set(lerp(260,120,k), lerp(130,70,k), lerp(640,260,k)); camera.lookAt(150,90,-1750); setFov(50); if(t>3) cap='<span>Turbo Ring</span><small>Festival · Japan</small>'; }
+  if(type==='establish'){ const L=MAPDATA.lake; camera.position.set(lerp(L[0]+260,L[0]-120,k), lerp(260,150,k), lerp(L[1]-420,L[1]-80,k)); camera.lookAt(FUJI.x, 90, FUJI.z); setFov(50); if(t>3) cap='<span>Turbo Ring</span><small>Festival · Japan</small>'; }
   else if(type==='front'){ camera.position.set(r.x+s*(9-k*3)+sx*2.2, r.y+.6, r.z+c*(9-k*3)+sz*2.2); camera.lookAt(r.x, r.y+.7, r.z); setFov(42); }
   else if(type==='side'){ camera.position.set(r.x+sx*4.6+s*(2.5-k*5), r.y+.75, r.z+sz*4.6+c*(2.5-k*5)); camera.lookAt(r.x+s*1.5, r.y+.6, r.z+c*1.5); setFov(48); }
   else if(type==='rear'){ camera.position.set(r.x-s*(5.5+k*2)-sx*1.2, r.y+.55, r.z-c*(5.5+k*2)-sz*1.2); camera.lookAt(r.x+s*12, r.y+.8, r.z+c*12); setFov(46); }
   else if(type==='bridge' && W.bridgeMid){ const B=W.bridgeMid, hw=W.byId.hwy, seg=hw.len/hw.N, f=B.i-24+(t-t0)*30/seg, i0=Math.floor(f), fr=f-i0, a1=hw.pts[(i0+hw.N)%hw.N], a2=hw.pts[(i0+1+hw.N)%hw.N], tn=hw.tan[(i0+hw.N)%hw.N], nn=hw.nor[(i0+hw.N)%hw.N];
-    r.x=lerp(a1.x,a2.x,fr)+nn.x*3.6; r.z=lerp(a1.z,a2.z,fr)+nn.z*3.6; r.y=lerp(a1.y,a2.y,fr)+.02; r.h=Math.atan2(tn.x,tn.z); r.vx=tn.x*30; r.vz=tn.z*30; r.vy=0; r.fwd=30; r.lat=0; r.air=false; r.mesh.position.set(r.x,r.y,r.z); r.mesh.rotation.set(0,r.h,0); camera.position.set(B.p.x+B.n.x*27-B.t.x*12, B.p.y+.8, B.p.z+B.n.z*27-B.t.z*12); camera.lookAt(B.p.x-B.t.x*10, B.p.y+2.2, B.p.z-B.t.z*10); setFov(38); }
+    r.x=lerp(a1.x,a2.x,fr)+nn.x*3.6; r.z=lerp(a1.z,a2.z,fr)+nn.z*3.6; r.y=lerp(a1.y,a2.y,fr)+.02; r.h=Math.atan2(tn.x,tn.z); r.vx=tn.x*30; r.vz=tn.z*30; r.vy=0; r.fwd=30; r.lat=0; r.air=false; r.mesh.position.set(r.x,r.y,r.z); r.mesh.rotation.set(0,r.h,0); camera.position.set(B.p.x+B.n.x*36-B.t.x*8, Math.max(WATER_Y+1.5,B.p.y-2), B.p.z+B.n.z*36-B.t.z*8); camera.lookAt(lerp(B.p.x,r.x,.6), r.y+1, lerp(B.p.z,r.z,.6)); setFov(40); }
   else if(type==='drone' || type==='bridge'){ const e=sstep(0,1,k); camera.position.set(r.x-s*(8+e*40)-sx*e*20, r.y+2.5+e*45, r.z-c*(8+e*40)-sz*e*20); camera.lookAt(r.x+s*25, r.y+3+e*10, r.z+c*25); setFov(55); }
+  else if(type==='city'){ const T=W.tower, a=-.9+k*1.5, d=lerp(260,150,k); camera.position.set(T.x+Math.sin(a)*d, T.y+lerp(40,95,k), T.z+Math.cos(a)*d); camera.lookAt(T.x, T.y+lerp(60,110,k), T.z); setFov(52); cap='<span>Neon-City</span>'; }
+  else if(type==='fuji'){ const a=1.6+k*1.1, d=FUJI.r*1.55; camera.position.set(FUJI.x+Math.sin(a)*d, FUJI.h*.55+lerp(60,140,k), FUJI.z+Math.cos(a)*d); camera.lookAt(FUJI.x, FUJI.h*.55, FUJI.z); setFov(46); cap='Bis zum <span>Gipfel</span><small>Fuji-Bergstraße</small>'; }
   else if(type==='orbit'){ const a=k*1.6+.6, rad=130-k*30; camera.position.set(Math.sin(a)*rad, hy+32-k*8, Math.cos(a)*rad-10); camera.lookAt(0,hy+8,-30); setFov(55); }
   else if(type==='stage'){ camera.position.set(lerp(-8,6,k), hy+lerp(5,9,k), lerp(15,-22,k)); camera.lookAt(0,hy+12,-68); setFov(52); cap='Willkommen<br>beim <span>Festival</span>'; }
   else if(type==='car'){ const a=k*2.2+2.4; camera.position.set(r.x+Math.sin(a)*6.5, r.y+1.1, r.z+Math.cos(a)*6.5); camera.lookAt(r.x, r.y+.7, r.z); setFov(45); }

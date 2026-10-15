@@ -2,22 +2,20 @@
 /* =====================================================================
    WELT
    ===================================================================== */
+// Höhenkarte aus der Japan-Karte (MAPDATA), plus Festival-Plateau, flache Stadt und befahrbarer Fuji
+const HM=(()=>{ const b=atob(MAP_HM_B64), n=b.length>>1, a=new Float32Array(n); for(let i=0;i<n;i++){ let v=b.charCodeAt(2*i)|(b.charCodeAt(2*i+1)<<8); if(v>32767) v-=65536; a[i]=v/10; } return a; })();
+function hmAt(x,z){ const M=MAPDATA.hm; const fx=clamp((x-M.x0)/M.dx,0,M.nx-1.001), fz=clamp((z-M.z0)/M.dz,0,M.nz-1.001), i=fx|0, k=fz|0, u=fx-i, v=fz-k, o=k*M.nx+i;
+  return lerp(lerp(HM[o],HM[o+1],u), lerp(HM[o+M.nx],HM[o+M.nx+1],u), v); }
+const CITY=MAPDATA.city, HUB_H=hmAt(0,0), CITY_H=hmAt(CITY.x,CITY.z);
 function baseH(x,z){
-  let h = 7*Math.sin(x*.0055+1.3)*Math.cos(z*.0048+.4) + 3.5*Math.sin(x*.016+z*.012) + 1.4*Math.sin(x*.043-z*.037);
-  const m = sstep(-180,-460,z);
-  h += m*(46 + 26*Math.sin(x*.0085+.7)*Math.cos(z*.011) + 12*Math.sin(x*.024+z*.02));
-  const hub = 1-sstep(220,320,Math.hypot(x,z));
-  const cx=Math.max(0,Math.abs(x-460)-215), cz=Math.max(0,Math.abs(z-430)-215); const city=1-sstep(0,80,Math.hypot(cx,cz));
-  h *= 1-Math.max(hub,city)*.93;
-  const c = Math.max(sstep(-1420,-1580,x), sstep(1440,1580,z), sstep(HALF-140,HALF-20,x));
-  h=(h+10)*(1-c) - c*10;
-  if(x>540 && x<1120){ const rv=Math.abs(z-40-8*Math.sin(x*.01)); h=lerp(h,-7,(1-sstep(14,46,rv))*sstep(540,600,x)*sstep(1110,1010,x)); }   // Fluss unter der Brücke (endet im See)
-  // Fuji: echter, befahrbarer Berg im Norden
-  const fr=Math.hypot(x-FUJI.x,z-FUJI.z)/FUJI.r; if(fr<1.25){ const fh=FUJI.h*Math.pow(Math.max(0,1-fr),1.55)+6*Math.sin(Math.atan2(x-FUJI.x,z-FUJI.z)*7)*fr*(1-fr); h=Math.max(h, h*.4+fh+(1-sstep(.9,1.25,fr))*18); }
+  let h=hmAt(x,z);
+  const hub=1-sstep(MAPDATA.hub.r0,MAPDATA.hub.r1,Math.hypot(x,z)); if(hub>0) h=lerp(h,HUB_H,hub*.95);
+  const cx=Math.max(0,Math.abs(x-CITY.x)-CITY.hw), cz=Math.max(0,Math.abs(z-CITY.z)-CITY.hd), city=1-sstep(0,60,Math.hypot(cx,cz)); if(city>0) h=lerp(h,CITY_H,city*.92);
+  const fr=Math.hypot(x-FUJI.x,z-FUJI.z)/FUJI.r; if(fr<1){ const fh=FUJI.h*Math.pow(1-fr,1.55)+5*Math.sin(Math.atan2(x-FUJI.x,z-FUJI.z)*7)*fr*(1-fr); h=Math.max(h, lerp(h,h*.4+fh,sstep(1,.8,fr))); }
   return h;
 }
 const WATER_Y = 0;
-const FUJI={x:150, z:-1400, r:700, h:260};
+const FUJI=MAPDATA.fuji;
 let W = null;
 const G = { onRoad:false, d:1e9, r:null, i:0 };
 const QR = { d:0, r:null, i:0, y:0 };
@@ -57,8 +55,8 @@ function buildRoadData(def){
   for(let k=0;k<3;k++) ys=smoothArr(ys,14,def.loop);
   { const g=(def.grade||.09)*len/n; for(let it=0;it<6;it++){ for(let i=1;i<N;i++) ys[i]=clamp(ys[i],ys[i-1]-g,ys[i-1]+g); for(let i=N-2;i>=0;i--) ys[i]=clamp(ys[i],ys[i+1]-g,ys[i+1]+g); if(def.loop) ys[0]=clamp(ys[0],ys[N-1]-g,ys[N-1]+g); } ys=smoothArr(ys,5,def.loop); }  // max. ~9 % Steigung
   let bridge=null;
-  if(def.id==='hwy'){ bridge=pts.map(p=>p.x>575 && Math.abs(p.z-40-8*Math.sin(p.x*.01))<52); const ia=bridge.indexOf(true), ib=bridge.lastIndexOf(true);
-    if(ia>0 && ib<N-1){ const ya=ys[ia-1], yb=ys[ib+1]; for(let i=ia;i<=ib;i++) ys[i]=Math.max(lerp(ya,yb,(i-ia)/(ib-ia)), 9); ys=smoothArr(ys,6,true); } else bridge=null; }
+  if(def.id==='hwy'){ const wet=pts.map(p=>baseH(p.x,p.z)<WATER_Y+.8); let best=null, st=-1; for(let i=0;i<=N;i++){ if(i<N&&wet[i]){ if(st<0) st=i; } else if(st>=0){ if(!best||i-st>best[1]-best[0]) best=[st,i-1]; st=-1; } }
+    if(best && best[0]>14 && best[1]<N-15){ const ia=best[0]-10, ib=best[1]+10; bridge=pts.map((p,i)=>i>=ia&&i<=ib); const ya=ys[ia-1], yb=ys[ib+1]; for(let i=ia;i<=ib;i++) ys[i]=Math.max(lerp(ya,yb,(i-ia)/(ib-ia)), 8); ys=smoothArr(ys,6,true); } }
   if(!def.loop){ // Zufahrten: wo sie andere Straßen überlappen, exakt deren Höhe übernehmen, dann weich überblenden
     const snap=pts.map(p=>{ const q=roadQuery(p.x,p.z); return q && q.d<ROAD_W*1.25 ? q.y : null; }), K=30, base=ys.slice();
     for(let i=0;i<N;i++){ let bk=1e9, by=0; for(let j=Math.max(0,i-K);j<=Math.min(N-1,i+K);j++) if(snap[j]!=null && Math.abs(j-i)<bk){ bk=Math.abs(j-i); by=snap[j]; } if(bk<=K) ys[i]=lerp(base[i], by, sstep(K,0,bk)); } }
@@ -236,11 +234,11 @@ function buildWorld(){
   for(let i=0;i<pa.count;i++){ const x=pa.getX(i), z=pa.getZ(i); let h=surfaceAt(x,z,false); const rq=roadQuery(x,z); if(rq && rq.r.bridge && rq.r.bridge[rq.i]) h=baseH(x,z); else if(rq && rq.d<ROAD_W/2+cell*.9) h=Math.min(h, rq.y-.3-Math.max(0,ROAD_W/2+cell*.9-rq.d)*.04); G.d=rq?rq.d:1e9; pa.setY(i,h);
     c.copy(cGrass).lerp(cGrass2, .5+.5*Math.sin(x*.02+z*.013)*Math.cos(z*.017));
     if(h>42) c.lerp(cRock, sstep(42,62,h)); if(h>150) c.lerp(cSnow, sstep(150+9*Math.sin(x*.05+z*.03),172,h));
-    if(h<2.2) c.lerp(cSand, sstep(2.2,.8,h));
+    if(h<1.3) c.lerp(cSand, sstep(1.3,.4,h));
     const nearRoad=G.d<ROAD_W/2+6; if(nearRoad) c.lerp(cDirt,.6);
-    const cxd=Math.max(0,Math.abs(x-460)-225), czd=Math.max(0,Math.abs(z-430)-225), city=cxd+czd<1; if(city) c.lerp(cCity,.85);
+    const city=Math.abs(x-CITY.x)<CITY.hw+10 && Math.abs(z-CITY.z)<CITY.hd+10; if(city) c.lerp(cCity,.85);
     if(hdata){ const ix=Math.round((x+HALF)/SZ*seg), iz=Math.round((z+HALF)/SZ*seg), o=(iz*N1+ix)*4; let dens=0;
-      if(h>1.6 && h<56 && G.d>ROAD_W/2+cell+2 && !city && Math.hypot(x,z+10)>92) dens=clamp(.62+.55*Math.sin(x*.045+z*.031)*Math.cos(z*.052-x*.023),0,1)*(1-sstep(40,56,h));
+      if(h>.8 && h<56 && G.d>ROAD_W/2+cell+2 && !city && Math.hypot(x,z+10)>92) dens=clamp(.62+.55*Math.sin(x*.045+z*.031)*Math.cos(z*.052-x*.023),0,1)*(1-sstep(40,56,h));
       hdata[o]=h; hdata[o+1]=dens; hdata[o+2]=.5+.5*Math.sin(x*.013-z*.017); hdata[o+3]=1; }
     if(hq){ c.convertSRGBToLinear(); c.multiplyScalar(1.05); }
     col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b; }
@@ -256,14 +254,18 @@ function buildWorld(){
     const water=new THREE.Mesh(new THREE.PlaneGeometry(9000,9000), new THREE.MeshStandardMaterial({color:C('#0e4a66'), roughness:.07, metalness:.1, normalMap:wt2, normalScale:new THREE.Vector2(.35,.35), transparent:true, opacity:.9, envMapIntensity:1.3}));
     water.rotation.x=-Math.PI/2; water.position.y=WATER_Y; scene.add(water); W.anim.push(dt=>{ wt.offset.x+=dt*.004; wt.offset.y+=dt*.0025; }); }
   else { const water=new THREE.Mesh(new THREE.PlaneGeometry(9000,9000), new THREE.MeshLambertMaterial({color:'#2f7fae', transparent:true, opacity:.88})); water.rotation.x=-Math.PI/2; water.position.y=WATER_Y; scene.add(water); }
-  // Fuji
-  if(P.fuji){ const fg=new THREE.Group(); fg.position.set(150,0,-1750);
-    if(hq){ const geo=new THREE.ConeGeometry(820,560,64,10,true), p=geo.attributes.position, cc=new Float32Array(p.count*3), q=new THREE.Color(), mid=new THREE.Color('#7a89a3');
-      for(let i=0;i<p.count;i++){ const y=(p.getY(i)+280)/560, a=Math.atan2(p.getZ(i),p.getX(i)); const snow=y>.66+.06*Math.sin(a*9)+.03*Math.sin(a*23); q.set(snow?'#eef3fa':'#4b5a73'); if(!snow) q.lerp(mid,y*.6); q.convertSRGBToLinear(); cc[i*3]=q.r; cc[i*3+1]=q.g; cc[i*3+2]=q.b; }
-      geo.setAttribute('color',new THREE.BufferAttribute(cc,3)); const fm=new THREE.MeshBasicMaterial({vertexColors:true, fog:false}); W.fujiMat=fm; const mesh=new THREE.Mesh(geo,fm); mesh.position.y=280; fg.add(mesh); }
-    else { const fm=new THREE.Mesh(new THREE.ConeGeometry(820,560,32,1,true), new THREE.MeshLambertMaterial({color:'#5f6f8a', fog:false})); fm.position.y=280; fg.add(fm);
-      const sc=new THREE.Mesh(new THREE.ConeGeometry(300,205,32,1,true), new THREE.MeshLambertMaterial({color:'#f4f7fb', fog:false})); sc.position.y=560-102; fg.add(sc); }
-    scene.add(fg); }
+  // Bergkette am Horizont (immer sichtbar, Farbe folgt der Tageszeit)
+  { const geos=[], q=new THREE.Color(), mid=new THREE.Color('#7a89a3'), R0=rng(77);
+    for(let k=0;k<26;k++){ const a=k/26*Math.PI*2+R0()*.15, d=3200+R0()*700, hh=220+R0()*300, rr=hh*(1.5+R0()*.8);
+      const g=new THREE.ConeGeometry(rr,hh,hq?28:12,hq?6:1,true), p=g.attributes.position, cc=new Float32Array(p.count*3);
+      for(let i=0;i<p.count;i++){ const y=(p.getY(i)+hh/2)/hh, an=Math.atan2(p.getZ(i),p.getX(i)); const snow=y>.62+.06*Math.sin(an*9+k)+.03*Math.sin(an*23); q.set(snow?'#eef3fa':'#4b5a73'); if(!snow) q.lerp(mid,y*.6); if(hq) q.convertSRGBToLinear(); cc[i*3]=q.r; cc[i*3+1]=q.g; cc[i*3+2]=q.b; }
+      g.setAttribute('color',new THREE.BufferAttribute(cc,3)); g.translate(Math.sin(a)*d, hh/2-30, Math.cos(a)*d); g.deleteAttribute('uv'); geos.push(g.toNonIndexed()); }
+    const fm=new THREE.MeshBasicMaterial({vertexColors:true, fog:false}); W.fujiMat=fm; scene.add(new THREE.Mesh(mergeList(geos), fm)); }
+  // Fernsehturm in Neon-City (Wahrzeichen, rot-weiß)
+  { const T=MAPDATA.tower, ty=surfaceAt(T[0],T[1],false), red=mat('#c8321e',{roughness:.6}), wht=mat('#f2f2f2',{roughness:.6}), tw=new THREE.Group(); tw.position.set(T[0],ty,T[1]);
+    for(let k=0;k<9;k++){ const r0=9-k*.95, r1=9-(k+1)*.95, m=new THREE.Mesh(new THREE.CylinderGeometry(r1,r0,13,hq?10:6,1,true), k%2?wht:red); m.position.y=k*13+6.5; tw.add(m); }
+    for(const yy of [52,90]){ const d=new THREE.Mesh(new THREE.CylinderGeometry(6.5,6.5,4,hq?16:8), wht); d.position.y=yy; tw.add(d); }
+    const sp=new THREE.Mesh(new THREE.CylinderGeometry(.3,1,26,6), red); sp.position.y=130; tw.add(sp); tw.traverse(o=>{ if(o.isMesh) o.castShadow=hq; }); scene.add(tw); addObs({x:T[0],z:T[1],r:9,top:ty+140}); W.tower={x:T[0],y:ty,z:T[1]}; }
 
   // Bäume: Kiefern (Berge), Laubbäume (Hügel), Kirschbäume (Tal) — in Kacheln, damit nur Sichtbares gezeichnet wird
   let pineG, broadG, trunkG, pineTrunkG;
@@ -275,12 +277,12 @@ function buildWorld(){
   const leafM=new THREE.MeshStandardMaterial({color:0xffffff, roughness:.85, metalness:0, envMapIntensity:.3}), barkM=mat('#5a3e28',{roughness:.95, metalness:0});
   const pines=[], broads=[], dm=new THREE.Object3D(); let tries=0; const nT=P.trees;
   while(pines.length+broads.length<nT && tries<nT*12){ tries++;
-    const x=rnd(-HALF+50,HALF-50), z=rnd(-HALF+50,HALF-50);
-    if(Math.hypot(x,z)<260) continue; if(VILLAGES.some(v=>Math.hypot(v[0]-x,v[1]-z)<120)) continue; const cxd=Math.max(0,Math.abs(x-460)-235), czd=Math.max(0,Math.abs(z-430)-235); if(cxd+czd<1) continue;
-    const h=surfaceAt(x,z,false); if(h<1.5||h>70) continue; if(G.d<ROAD_W/2+7) continue;
+    let x=rnd(-HALF+50,HALF-50), z=rnd(-HALF+50,HALF-50); if(tries%4===0){ const FO=MAPDATA.forest, a=rnd(0,6.283), rr=Math.sqrt(Math.random())*FO[2]; x=FO[0]+Math.cos(a)*rr; z=FO[1]+Math.sin(a)*rr; }
+    if(Math.hypot(x,z)<260) continue; if(VILLAGES.some(v=>Math.hypot(v[0]-x,v[1]-z)<120)) continue; if(Math.abs(x-CITY.x)<CITY.hw+25 && Math.abs(z-CITY.z)<CITY.hd+25) continue;
+    const h=surfaceAt(x,z,false); if(h<.9||h>110) continue; if(G.d<ROAD_W/2+7) continue;
     const s=rnd(.7,1.35); dm.position.set(x,h-.3,z); dm.scale.set(s,s*rnd(.9,1.15),s); dm.rotation.set(0,rnd(0,6),0); dm.updateMatrix();
-    const valley = x>150 && x<560 && z>-240 && z<210, tc=new THREE.Color();
-    if(z<-200 && !valley && Math.random()<.85){ tc.setHSL(.3+rnd(-.03,.03),.42,rnd(.2,.27)); if(hq) tc.convertSRGBToLinear(); pines.push({x,y:h,z,m:dm.matrix.clone(),c:tc}); }
+    const FO=MAPDATA.forest, valley = Math.hypot(x,z)<420, tc=new THREE.Color();
+    if((h>30 || Math.hypot(x-FO[0],z-FO[1])<FO[2]) && !valley && Math.random()<.85){ tc.setHSL(.3+rnd(-.03,.03),.42,rnd(.2,.27)); if(hq) tc.convertSRGBToLinear(); pines.push({x,y:h,z,m:dm.matrix.clone(),c:tc}); }
     else { if(valley||Math.random()<.12) tc.setHSL(.93+rnd(-.02,.02),.7,rnd(.72,.84)); else tc.setHSL(.27+rnd(-.04,.04),.45,rnd(.28,.38)); if(hq) tc.convertSRGBToLinear(); broads.push({x,y:h,z,m:dm.matrix.clone(),c:tc}); }
     addObs({x,z,r:.9*s,top:h+8}); }
   if(hq){ const loPine=prep(G_(new THREE.ConeGeometry(3.3,10,7),0,6.8,0)), loBroad=prep(jitter(smoothify(G_(new THREE.IcosahedronGeometry(3.6,0),0,6.6,0,0,0,0,1.15,1,1.15)),.18,3));
@@ -290,13 +292,13 @@ function buildWorld(){
     globalInstances(scene, broadG, leafM, broads, false); globalInstances(scene, trunkG, barkM, broads.map(t=>({...t,c:null})), false); }
   // Felsen
   if(P.rocks){ const rockG=prep(jitter(smoothify(new THREE.DodecahedronGeometry(1,1)),.3,5)), rocks=[]; let k=0;
-    while(rocks.length<P.rocks && k<P.rocks*20){ k++; const x=rnd(-HALF+50,HALF-50), z=rnd(-HALF+50,HALF-50), h=surfaceAt(x,z,false); if(G.d<ROAD_W/2+5) continue; if(!((h>28 && z<-150) || (h>.2 && h<3.2))) continue;
+    while(rocks.length<P.rocks && k<P.rocks*20){ k++; const x=rnd(-HALF+50,HALF-50), z=rnd(-HALF+50,HALF-50), h=surfaceAt(x,z,false); if(G.d<ROAD_W/2+5) continue; if(!(h>28 || (h>.3 && h<1.6))) continue;
       const s=rnd(1.2,h>28?6:3.2); dm.position.set(x,h-s*.3,z); dm.scale.set(s,s*rnd(.5,.9),s*rnd(.8,1.2)); dm.rotation.set(rnd(0,3),rnd(0,6),0); dm.updateMatrix();
       const tc=new THREE.Color().setHSL(.08,.06,rnd(.32,.5)); if(hq) tc.convertSRGBToLinear(); rocks.push({x,y:h,z,m:dm.matrix.clone(),c:tc}); if(s>1.8) addObs({x,z,r:s*.8,top:h+s*.6}); }
     globalInstances(scene, rockG, new THREE.MeshStandardMaterial({color:0xffffff, roughness:.92, metalness:0, flatShading:true}), rocks, true); }
 
   // Neon-City
-  const bG=new THREE.BoxGeometry(1,1,1); bG.translate(0,.5,0); bG.boundingSphere=new THREE.Sphere(new THREE.Vector3(460,60,430),420);
+  const bG=new THREE.BoxGeometry(1,1,1); bG.translate(0,.5,0); bG.boundingSphere=new THREE.Sphere(new THREE.Vector3(CITY.x,60,CITY.z),Math.hypot(CITY.hw,CITY.hd)+60);
   { const uv=bG.attributes.uv; for(let i=8;i<16;i++) uv.setXY(i,.01,.004); }   // Dach/Boden: keine Fenster
   const winM = new THREE.MeshStandardMaterial(Object.assign({map:TEX.win, emissive:'#ffffff', emissiveMap:TEX.winL, emissiveIntensity:0}, hq?{roughness:.32, metalness:.55, envMapIntensity:1.1}:{roughness:.6, metalness:.2}));
   // Fenster in echter Größe: UV nach Gebäudemaß skalieren (Raster ≈ 2,5 m × 3,2 m), statt Textur zu strecken
@@ -311,10 +313,10 @@ function buildWorld(){
   let bi=0, ni=0, nb=0, si=0; const NEON=['#ff2e88','#29d9ff','#ffd23a','#7cff6b','#b06bff','#ff7a2e'], SHOP=['#8d7b62','#6f7b85','#9a6f5a','#7d8a70','#5f6270'], tc=new THREE.Color();
   const setB=(x,y,z,w,h,d,col)=>{ dm.position.set(x,y,z); dm.scale.set(w,h,d); dm.rotation.set(0,0,0); dm.updateMatrix(); bld.setMatrixAt(bi,dm.matrix); bld.setColorAt(bi,col); bi++; };
   const roof=(x,y,z,w,h,d)=>{ if(nr>=nB*4) return; dm.position.set(x,y,z); dm.scale.set(w,h,d); dm.rotation.set(0,0,0); dm.updateMatrix(); roofs.setMatrixAt(nr++,dm.matrix); };
-  for(let gx=225; gx<=700 && nb<nB; gx+=30) for(let gz=215; gz<=660 && nb<nB; gz+=30){
+  for(let gx=CITY.x-CITY.hw+12; gx<=CITY.x+CITY.hw-12 && nb<nB; gx+=30) for(let gz=CITY.z-CITY.hd+12; gz<=CITY.z+CITY.hd-12 && nb<nB; gz+=30){
     if(Math.random()<.15) continue;
     const x=gx+rnd(-5,5), z=gz+rnd(-5,5), w=rnd(14,22), d=rnd(14,22); const q=roadQuery(x,z); if(q && q.d < Math.max(w,d)*.72+ROAD_W/2+3) continue;
-    const cen=1-clamp(Math.hypot(x-460,z-430)/280,0,1); const ht=rnd(14,30)+cen*rnd(30,85); const y=surfaceAt(x,z,false)-.5; nb++;
+    const cen=1-clamp(Math.hypot(x-CITY.x,z-CITY.z)/Math.max(CITY.hw,CITY.hd),0,1); const ht=rnd(14,30)+cen*rnd(30,85); const y=surfaceAt(x,z,false)-.5; nb++;
     tc.setHSL(rnd(.55,.7),rnd(.05,.2),rnd(.45,.8)); if(hq) tc.convertSRGBToLinear();
     const tall=ht>42, h1=tall?ht*rnd(.55,.7):ht, base=4.6;
     setB(x,y+base,z,w,h1-base,d,tc);
@@ -373,11 +375,11 @@ function buildWorld(){
     scene.add(box(.2,8,.2,mat('#cccccc'),x,p.y+4,z)); const f=new THREE.Mesh(new THREE.PlaneGeometry(2,5),mat(tentCols[k%tentCols.length],{side:THREE.DoubleSide, roughness:.8})); f.position.set(x+1,p.y+5.5,z); f.rotation.y=Math.atan2(fest.tan[i].x,fest.tan[i].z)+Math.PI/2; f.userData.merge=true; scene.add(f); }
 
   // Events (Rundkurse)
-  W.roads.filter(r=>r.loop).forEach(r=>{ const i=4, p=r.pts[i], n=r.nor[i]; const pos=new THREE.Vector3(p.x+n.x*(H+7), p.y, p.z+n.z*(H+7));
+  W.roads.filter(r=>r.loop && !r.def.noEvent).forEach(r=>{ const i=4, p=r.pts[i], n=r.nor[i]; const pos=new THREE.Vector3(p.x+n.x*(H+7), p.y, p.z+n.z*(H+7));
     const pil=new THREE.Mesh(new THREE.CylinderGeometry(3,3,70,24,1,true), basic('#ff2e88',{transparent:true,opacity:.35,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,toneMapped:false})); pil.position.set(pos.x,pos.y+35,pos.z); scene.add(pil);
     const lbl=makeLabel('⚑ '+r.name,'#ff2e88'); lbl.scale.set(18,4.4,1); lbl.position.set(pos.x,pos.y+12,pos.z); scene.add(lbl);
     W.events.push({ id:r.id, road:r, pos, name:r.name, laps:r.laps, mode:'race' }); });
-  for(const X of [{id:'drift_pass',road:'pass',mode:'drift',name:'Drift-Challenge Kaze',laps:1,at:70,col:'#ff7a2e'},{id:'time_fest',road:'fest',mode:'time',name:'Zeitfahren Festival',laps:2,at:150,col:'#29d9ff'}]){
+  for(const X of [{id:'drift_pass',road:'pass',mode:'drift',name:'Drift-Challenge Minami',laps:1,at:70,col:'#ff7a2e'},{id:'time_fest',road:'fest',mode:'time',name:'Zeitfahren Festival',laps:2,at:150,col:'#29d9ff'}]){
     const r=W.byId[X.road], i=X.at%r.N, p=r.pts[i], n=r.nor[i], pos=new THREE.Vector3(p.x-n.x*(H+7), p.y, p.z-n.z*(H+7));
     const pil=new THREE.Mesh(new THREE.CylinderGeometry(3,3,70,24,1,true), basic(X.col,{transparent:true,opacity:.35,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,toneMapped:false})); pil.position.set(pos.x,pos.y+35,pos.z); scene.add(pil);
     const lbl=makeLabel(X.name,X.col); lbl.scale.set(18,4.4,1); lbl.position.set(pos.x,pos.y+12,pos.z); scene.add(lbl);
@@ -420,14 +422,14 @@ function drawWorldMap(){
   mapImg=document.createElement('canvas'); mapImg.width=mapImg.height=MAPS; const g=mapImg.getContext('2d');
   const cell=8; for(let py=0;py<MAPS;py+=cell) for(let px=0;px<MAPS;px+=cell){ const x=px/MAPS*MAPW-MAPW/2, z=py/MAPS*MAPW-MAPW/2, h=baseH(x,z);
     g.fillStyle = h<WATER_Y+.5 ? '#1d4a6b' : h>60 ? '#5e6a72' : h>35 ? '#3f5a45' : '#2e4a34'; g.fillRect(px,py,cell,cell); }
-  const [cx0,cz0]=m2p(245,215), [cx1,cz1]=m2p(675,645); g.fillStyle='#3a3f4a'; g.fillRect(cx0,cz0,cx1-cx0,cz1-cz0);
+  const [cx0,cz0]=m2p(CITY.x-CITY.hw,CITY.z-CITY.hd), [cx1,cz1]=m2p(CITY.x+CITY.hw,CITY.z+CITY.hd); g.fillStyle='#3a3f4a'; g.fillRect(cx0,cz0,cx1-cx0,cz1-cz0);
   g.lineJoin=g.lineCap='round';
   for(const pass of [0,1]) W.roads.forEach(r=>{ g.beginPath(); r.pts.forEach((p,i)=>{ const [x,y]=m2p(p.x,p.z); i?g.lineTo(x,y):g.moveTo(x,y); }); if(r.loop) g.closePath();
     g.strokeStyle = pass? (r.loop?'#f2f4f7':'#c9ced6') : 'rgba(0,0,0,.6)'; g.lineWidth = pass?4:8; g.stroke(); });
 }
 
 /* ---------- Dörfer: japanische Wohnhäuser mit Satteldach ---------- */
-const VILLAGES=[[-1000,-380],[-1290,300],[-1000,740],[-420,300],[430,1010],[900,1060],[-250,1110],[1360,-460],[1460,620],[1300,180],[-720,-640]];
+const VILLAGES=MAPDATA.villages;
 function buildVillages(scene, hq, dm){
   const hm=new THREE.MeshStandardMaterial({color:0xffffff, map:TEX.house, roughness:.85, metalness:0});
   const g1=new THREE.BoxGeometry(1,1,1); g1.translate(0,.5,0); const g2=g1.clone(); { const u=g2.attributes.uv; for(let i=0;i<u.count;i++) u.setY(i,u.getY(i)*2); }
